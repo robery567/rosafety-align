@@ -1,0 +1,152 @@
+# Paper 3 training configurations
+#
+# Locked at week 1 before the first training run. Hyperparameter selection
+# was done on Qwen-2.5-3B dev only; cross-anchor tuning is allowed for `lr`
+# only and is logged per run.
+
+defaults:
+  optim: adamw_torch
+  lr: 5.0e-6
+  lr_scheduler: cosine
+  warmup_steps: 100
+  num_epochs: 1
+  max_seq_len: 1024
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 8        # effective batch 32
+  bf16: true
+  gradient_checkpointing: true
+  logging_steps: 25
+  save_steps: 250
+  eval_steps: 100
+  early_stopping_metric: dev_safety_score
+  early_stopping_patience: 4
+
+# Probe-guided layer selection (METHOD_DESIGN §2)
+probe:
+  set_size: 200                          # 100 toxic + 100 benign (frozen)
+  hidden_capture: last_assistant_prefix  # see METHOD_DESIGN §1
+  metric: difference_in_means
+  rank_score: separation_x_unidirectionality
+  default_k: 4
+  exclude_blocks_below_fraction: 0.25    # drop early blocks (input-feature artefacts)
+
+# DPO objective
+dpo:
+  beta: 0.1
+  reference_free: false
+  loss_type: sigmoid                     # standard DPO
+  precompute_ref_log_probs: true
+
+# Conditions sweep over for every anchor. Order = compute order, cheap → expensive.
+conditions:
+
+  base:
+    description: "No alignment. Generate-only on the holdout for the comparison anchor."
+    train: false
+
+  sft:
+    description: "SFT on chosen responses only. Ablates the preference signal."
+    train: true
+    objective: sft
+    lora:
+      target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+      target_blocks: all
+      r: 16
+      alpha: 32
+      dropout: 0.05
+
+  rd-dpo-k1:
+    description: "RD-DPO, k=1. Smallest possible targeted set."
+    train: true
+    objective: dpo
+    lora:
+      target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+      target_blocks: probe_topk
+      k: 1
+      r: 16
+      alpha: 32
+      dropout: 0.05
+
+  rd-dpo-k2:
+    description: "RD-DPO, k=2."
+    train: true
+    objective: dpo
+    lora:
+      target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+      target_blocks: probe_topk
+      k: 2
+      r: 16
+      alpha: 32
+      dropout: 0.05
+
+  rd-dpo-k4:
+    description: "RD-DPO default — top-k blocks by refusal-direction probe."
+    train: true
+    objective: dpo
+    lora:
+      target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+      target_blocks: probe_topk
+      k: 4
+      r: 16
+      alpha: 32
+      dropout: 0.05
+
+  rd-dpo-k8:
+    description: "RD-DPO, k=8. Diminishing returns expected vs k=4."
+    train: true
+    objective: dpo
+    lora:
+      target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+      target_blocks: probe_topk
+      k: 8
+      r: 16
+      alpha: 32
+      dropout: 0.05
+
+  dpo-lora-all:
+    description: "Standard LoRA-DPO (all linear modules in all blocks). Strongest baseline."
+    train: true
+    objective: dpo
+    lora:
+      target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+      target_blocks: all
+      r: 16
+      alpha: 32
+      dropout: 0.05
+
+  dpo-full:
+    description: "Vanilla full-model DPO. Gold-standard reference; expensive."
+    train: true
+    objective: dpo
+    lora:
+      enabled: false
+
+  dpo-lora-all-translated:
+    description: "LoRA-DPO with mechanically-MT'd HH-RLHF preferences. Tests RO-native vs translated."
+    train: true
+    objective: dpo
+    preference_dataset: data/preferences/hh_rlhf_mt_ro.jsonl
+    lora:
+      target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+      target_blocks: all
+      r: 16
+      alpha: 32
+      dropout: 0.05
+
+  safe-lora:
+    description: "Safe LoRA (Hsu et al. 2024) post-hoc projection of dpo-lora-all."
+    train: true
+    objective: safe_lora
+    base_condition: dpo-lora-all
+    safe_lora:
+      threshold: 0.5
+
+# Ablations — run on Qwen-2.5-3B only, default seed 17, results merged into the same
+# results/ directory under condition names rd-dpo-k4-r{rank}, rd-dpo-k4-beta{β}, etc.
+ablations:
+  rank: [4, 8, 16, 32]
+  beta: [0.05, 0.1, 0.2, 0.5]
+  probe_set_size: [50, 100, 200, 500]
+  probe_metric: [difference_in_means, logistic_regression]
+  with_overrefusal_counter: [true, false]
+  with_crosslingual_aug: [true, false]

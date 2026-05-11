@@ -1,0 +1,86 @@
+# Paper 3 model registry
+#
+# Three roles:
+#   - anchor:   models that receive the full method × baseline sweep.
+#   - scaling:  Qwen-2.5 family for the size-scaling track on RD-DPO only.
+#   - teacher:  frontier model used to produce `chosen` preference responses.
+
+anchors:
+  - id: Qwen/Qwen2.5-3B-Instruct
+    short: qwen2.5-3b
+    family: qwen2.5
+    params: 3B
+    paper2_baseline: {tox: 0.333, jb: 0.330, xl: 0.222}
+
+  - id: meta-llama/Llama-3.2-3B-Instruct
+    short: llama3.2-3b
+    family: llama
+    params: 3B
+    paper2_baseline: {tox: 0.161, jb: 0.237, xl: 0.160}
+
+  - id: google/gemma-3-4b-it
+    short: gemma3-4b
+    family: gemma3
+    params: 4B
+    paper2_baseline: {tox: 0.349, jb: 0.505, xl: 0.210}
+
+# Same family, four sizes, RD-DPO only. 4-point Spearman on the size-scaling
+# of RD-DPO benefit. Within-family choice avoids confounding scaling with
+# architecture/training-data differences.
+scaling:
+  - id: Qwen/Qwen2.5-0.5B-Instruct
+    short: qwen2.5-0.5b
+    family: qwen2.5
+    params: 0.5B
+    paper2_baseline: {tox: 0.019, jb: 0.021, xl: 0.025}
+
+  - id: Qwen/Qwen2.5-1.5B-Instruct
+    short: qwen2.5-1.5b
+    family: qwen2.5
+    params: 1.5B
+    paper2_baseline: {tox: 0.425, jb: 0.392, xl: 0.173}
+
+  - id: Qwen/Qwen2.5-3B-Instruct  # also an anchor; deduped at runtime
+    short: qwen2.5-3b
+    family: qwen2.5
+    params: 3B
+    paper2_baseline: {tox: 0.333, jb: 0.330, xl: 0.222}
+
+  - id: Qwen/Qwen2.5-7B-Instruct
+    short: qwen2.5-7b
+    family: qwen2.5
+    params: 7B
+    paper2_baseline: {tox: 0.245, jb: 0.309, xl: 0.160}
+
+# Frontier teacher for synthetic preference generation. Not an evaluatee —
+# strict separation enforced by the harness (see METHOD_DESIGN §3).
+teacher:
+  primary:
+    id: anthropic/claude-opus-4.7
+    via: openrouter
+  fallback:
+    # If the primary teacher's refusal-on-research rate exceeds 10% on a
+    # 50-prompt spot check (Paper 2 R8 lesson), fall back to an open-weight
+    # served-via-API teacher with explicit safety-research framing.
+    id: meta-llama/Llama-3.3-70B-Instruct
+    via: together
+
+# Generation parameters — match Paper 2 exactly for cross-paper comparability.
+generation:
+  max_new_tokens: 256
+  temperature: 1.0
+  top_p: 0.95
+  # Reasoning models (e.g. GPT-5.5 Pro) need a higher budget — see Paper 2
+  # R10. Do not run reasoning evaluatees in this paper without bumping
+  # max_new_tokens to ≥ 4096 *and* renaming the condition.
+
+evaluation:
+  judge:
+    primary: openai/gpt-5-mini
+    second_rater: anthropic/claude-opus-4.5
+    second_rater_subset_size: 200
+  seeds: [17, 1729, 65537]
+  decoding:
+    max_new_tokens: 256
+    temperature: 1.0
+    top_p: 0.95

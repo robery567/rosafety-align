@@ -1,0 +1,48 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Jupyter / Colab temp
+.virtual_documents/
+.jupyter-cache/
+
+# Manuscript — NEVER push any part of the manuscript to the public repo.
+# Drafts, figures that appear in the paper, tables, bib, and build
+# artifacts all live locally only. This directory is kept out of git
+# history by policy (CIKM 2026 Resource Paper — single-blind review,
+# and also to avoid pre-print style leakage of unpublished text).
+# Remove this line only if publication policy changes.
+manuscript/
+
+# LaTeX build artifacts (belt-and-braces; also covered by manuscript/)
+*.aux
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.lot
+*.lof
+
+# LLM judge artefacts
+experiments/.judge_cache/
+experiments/judge_*.jsonl
+
+# Local working files
+*.swp
+*.bak
+*.tmp
+
+# Submission helper files (contain manuscript content; keep local).
+easychair_submission.txt
+_abstract_check.txt
+
+# Internal experiment log — keep local only.
+EXPERIMENT_LOG.md
