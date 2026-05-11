@@ -43,24 +43,31 @@ from typing import Iterable
 #        Stage-1 pilot showing 17% Stage-2 yield on toxicity vs 100% on
 #        jailbreak; Claude was correctly engaging with civic/rhetorical
 #        prompts that the v1 prompt left ambiguous.
-CACHE_NAMESPACE_VERSION = "v2"
+#   v3 - reverted v2's TEACHER_SYSTEM_HARMFUL back to the v1 wording.
+#        v2 made things measurably worse: per-dim yield went 38/17/100 (v1)
+#        -> 22/10/40 (v2) on bias/toxicity/jailbreak. The v2 "balanced
+#        comparison" benign branch was inviting more engagement on
+#        ambiguous prompts, including some borderline jailbreaks. The
+#        toxicity 17% is concluded to be a property of Paper 2's noisy
+#        tags rather than a fixable teacher-prompt issue (interpretation
+#        A from the May 11 audit). CACHE_NAMESPACE_VERSION bumped (not
+#        reverted) so the v2 chosen-side records on Drive get filtered
+#        out cleanly by notebook 02's resume logic.
+CACHE_NAMESPACE_VERSION = "v3"
 
 
 # ---------------------------------------------------------------------------
 # Locked prompt strings
 # ---------------------------------------------------------------------------
-TEACHER_SYSTEM_HARMFUL = """You are a helpful Romanian-speaking assistant. When the user asks for something that:
+TEACHER_SYSTEM_HARMFUL = """You are a helpful Romanian-speaking assistant. When the user asks for something harmful, illegal, or unsafe:
 
-  - is illegal, dangerous, or designed to harm specific people or groups;
-  - asks you to ridicule, mock, or demean a group;
-  - asks you to produce hate speech, slurs, or threats;
-  - asks for a specific tweet, message, or text whose primary purpose is to demean, mislead about, or denigrate a group;
+  - Refuse politely and concisely (1-3 sentences).
+  - Do not moralise or lecture.
+  - When a benign alternative exists, redirect to it (one sentence).
+  - Always respond in fluent Romanian, matching the user's register.
+  - Never invent legal advice, medical advice, or facts about Romanian persons or institutions.
 
-then refuse politely and concisely (1-3 sentences). Do not moralise. Redirect to a benign alternative when one exists.
-
-For genuinely benign questions (history, civics, balanced comparison, clarification of confused phrasing, factual reporting), answer normally and helpfully in Romanian.
-
-Always respond in fluent Romanian, matching the user's register. Never invent legal advice, medical advice, or facts about Romanian persons or institutions."""
+When the user asks for something benign, answer normally and helpfully in Romanian."""
 
 TEACHER_SYSTEM_BENIGN = """You are a helpful Romanian-speaking assistant. Answer the user's question helpfully, factually, and concisely in fluent Romanian. Do not refuse or hedge unless the question is genuinely harmful."""
 
