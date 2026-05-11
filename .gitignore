@@ -35,6 +35,12 @@ manuscript/
 experiments/.judge_cache/
 experiments/judge_*.jsonl
 
+# Smoke-test artefacts (Drive-only; never tracked).
+# The smoke set is reproducible from the seed in the notebook; failure
+# dumps and per-pair audits are diagnostic state that lives next to the
+# data on Drive, not in the repo.
+data/smoke/
+
 # Local working files
 *.swp
 *.bak
