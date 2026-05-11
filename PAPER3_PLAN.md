@@ -80,18 +80,40 @@ Reuse Paper 2's prompts as the source of harmful intents but **strict split disc
 - **Holdout (20%):** ~190 prompts. Reported numbers come from this split only.
 - **Cross-lingual (86 prompts):** **eval-only**, never train. Tests cross-lingual generalization.
 
-Training data construction per prompt (one harmful Romanian prompt → one preference pair):
+### 5.1 Pair construction (per anchor)
 
-- `chosen` = teacher (Claude Opus 4.7) response. Prompted with a Romanian-aware refusal style: short, polite, no moralizing, redirect to a benign alternative when one exists. We curate the teacher's refusal style as part of the contribution (datasheet-grade documentation).
-- `rejected` = base evaluatee's own completion on the same prompt, sampled at temperature 1 with `n` resamples to find a high-likelihood compliance under the base model. If no compliance is sampled in `n=8` tries, we drop the pair (prompt is already refused; nothing to align). Documented per-model.
+For each train prompt:
 
-Augmentation expansions:
-- **Cross-lingual preferences (~200 new pairs).** Generate Romanian harmful prompts paired with their EN translations; chosen is teacher RO refusal, rejected is base evaluatee EN compliance translated to RO. Tests cross-lingual transfer of alignment.
-- **Over-refusal counter-pairs (~200 new pairs).** Critical: naive DPO on safety-only pairs raises over-refusal. We pair benign Romanian prompts (cooking, tick bites, language-learning) with `chosen=helpful answer` / `rejected=apologetic refusal` to keep the over-refusal rate bounded. Without this counter-balance the method will look like it just teaches the model to refuse everything.
+- `chosen` (harmful prompts): **Claude Opus 4.7** under the locked Romanian-aware refusal-style system prompt (METHOD §3.4). Short, polite, no moralising, redirect to a benign alternative when one exists. Frontier teacher = the alignment-signal source.
+- `chosen` (benign over-refusal counter-pairs): **Llama-3.3-70B-Instruct via Together** under a plain "answer helpfully in Romanian" system prompt. Cooking, tick-bite first aid, civic information do not need frontier-tier; the chosen-side here is a capability-preservation signal, not a refusal-style signal. Mixed-teacher justified by sub-objective asymmetry, named explicitly in the paper.
+- `rejected`: base evaluatee's own completion on the prompt, sampled at temperature 1 / top-p 0.95 with `n=8` resamples to find a high-likelihood compliance. If no compliance is sampled in `n=8` tries, the pair is dropped (the base model already refuses; nothing to align).
 
-Total dataset target: **~10-15K pairs** per anchor. Dataset will be released under CC BY 4.0 alongside the paper (anonymised at submission).
+### 5.2 Composition target (per anchor)
 
-Translated-EN-preferences condition (control): take 10K pairs from Anthropic HH-RLHF, mechanical-MT to RO via Google Translate, train identical recipe. Tests "are RO-native preferences worth the effort vs translation".
+**~800 pairs** per anchor for the headline experiments:
+
+| Component | Pairs | Teacher | Why |
+|---|---|---|---|
+| Core harmful (toxicity / jailbreak / bias train) | ~400 | Claude Opus 4.7 | Refusal-style alignment signal |
+| Cross-lingual harmful | ~200 | Claude Opus 4.7 | Cross-lingual transfer signal |
+| Over-refusal counter-pairs (benign helpful vs apologetic refusal) | ~200 | Llama-3.3-70B | Capability preservation; **non-negotiable** — without these the over-refusal axis blows up |
+
+This sits in the same operating point as Safe LoRA (Hsu 2024, ~800-2,000), SaLoRA (Li 2024, ~1,000), and NSPO (Lin 2024, ~600). LoRA on 4 selected blocks bounds parameter capacity, which bounds useful dataset size; we name and defend this in §6.5.
+
+### 5.3 Translated-EN-preferences control
+
+10K pairs from Anthropic HH-RLHF, mechanical-MT to RO via Google Translate (LLM-MT refused too often in Paper 2 R8). Train identical recipe. Tests "are RO-native preferences worth the effort vs translation". Generated **once**, shared across all three anchors (no per-anchor regeneration cost).
+
+### 5.4 Reviewer-management plan
+
+The most-likely reviewer comment will be "why only 800 pairs?". Defence:
+
+- Citation row from comparable methods (Safe LoRA, NSPO, SaLoRA all 600-2,000).
+- Single ablation point on Qwen-2.5-3B at 4× data (~3,200 pairs, ~$80) showing it does not improve safety on the holdout. Pre-empts the concern at a fixed extra cost; logged in `§6.5 Cost ledger`.
+
+### 5.5 Datasheet
+
+Following Gebru et al. 2021. Drafted in week 1, finalised before any training run, shipped with v1 release.
 
 ## 6. RD-DPO recipe
 
@@ -128,16 +150,41 @@ This is a one-shot pre-training analysis, ~10 GPU-minutes. Cached and shipped wi
 
 Total method-track sweep ≈ 60-80 A100-hours. Fits in 1-2 months of Colab Pro+ A100 quota or a few weeks of academic cluster time.
 
+### 6.5 OpenRouter cost ledger
+
+Locked May 11 2026. Re-validate at the smoke-test gate (§15) before bulk spend.
+
+| Item | Calls | Per-call | Subtotal |
+|---|---|---|---|
+| Notebook 00 — pilot smoke test (50 teacher + 50 judge) | 100 | mixed | ~$2 |
+| Notebook 02 — Qwen-2.5-3B prefs (600 Opus harmful + 200 Llama-70B benign + ~2,800 stage-1 judges + ~800 verification judges) | ~4,400 | mixed | ~$22 |
+| Notebook 02 — Llama-3.2-3B prefs (same composition) | ~4,400 | mixed | ~$22 |
+| Notebook 02 — Gemma-3-4B prefs (same composition, abbreviated condition sweep) | ~4,400 | mixed | ~$22 |
+| Notebook 04 — safety eval (3 anchors × 5 conditions × 3 seeds × ~500 judge calls) | ~22,500 | $0.001 | ~$23 |
+| Notebook 05 — RO-QA judging (45 runs × 50 calls) | ~2,250 | $0.001 | ~$3 |
+| Second-rater κ audit (one-time, claude-opus-4.5 on 200 stratified) | 200 | $0.025 | ~$5 |
+| Reviewer-pre-empt: Qwen-2.5-3B at 4× data ablation (one extra preference build) | ~3,200 | mixed | ~$12 |
+| **Headline budget** | | | **~$111** |
+| Safety pad for retries / failed teacher prompt iterations / mid-run fixes | | | +$50 |
+| **Recommended OpenRouter cap** | | | **$200** |
+
+The safety pad assumes Paper 2 R8 / R10-style discoveries that need a partial regeneration. A *full* regeneration of preferences for one anchor costs ~$22, comfortably inside the pad. Two such re-runs across the project still keeps us under $200.
+
+Cost-control levers if we exceed budget:
+1. Drop the 4× ablation (-$12) — costs us a reviewer-pre-empt argument, manageable.
+2. Drop Gemma-3-4B's `dpo-full` and `safe-lora` baselines (-$8) — we already abbreviate this anchor's sweep.
+3. Drop the second-rater κ audit (-$5) — would cost cross-paper κ consistency; do not pull this lever.
+
 ## 7. Baselines
 
 Required for every anchor:
 
 1. **Base** — no alignment (Paper 2 numbers, regenerated under matched generation params for clean comparison).
 2. **SFT-only** — fine-tune on `chosen` responses; ablates the preference signal.
-3. **Vanilla DPO (full model)** — gold standard DPO baseline.
+3. **Vanilla DPO (full model)** — gold standard DPO baseline. **Skip on Gemma-3-4B** (compute + cost trade — see §15).
 4. **LoRA-DPO (all layers, rank 16)** — the standard PEFT recipe.
-5. **Safe LoRA (Hsu 2024)** — post-hoc projection of a LoRA-DPO update.
-6. **Translated-EN preferences (10K HH-RLHF MT'd to RO)** — controls for "RO-native vs translated".
+5. **Safe LoRA (Hsu 2024)** — post-hoc projection of a LoRA-DPO update. **Skip on Gemma-3-4B**.
+6. **Translated-EN preferences (10K HH-RLHF MT'd to RO)** — controls for "RO-native vs translated". One-time generation, shared across anchors.
 
 Stretch baselines (only if time):
 
@@ -203,9 +250,11 @@ Secondary ablations (Qwen-2.5-3B unless noted):
 | Over-refusal climbs above the Paper-2 frontier (72% / 53%) | High      | Counter-balance pairs in §5 are mandatory, not stretch. Eval over-refusal every checkpoint, gate releases.  |
 | Capability tax > 1 pp                                   | Medium     | Lower rank, lower β, fewer training steps. Document Pareto frontier honestly even if tax > 1 pp.            |
 | Refusal-direction probe is unstable across models       | Low-Medium | Probe sample-size and metric ablations (§9) build the defence pre-emptively.                                |
-| Frontier teacher refuses too much during data gen       | Medium     | Paper 2 R8 already saw this with `gpt-4o-mini` (37/40 refusals on translation). Use Claude with a teacher-style system prompt; if Claude also refuses on >10% of prompts, fall back to a Llama-3.3-70B-Instruct teacher with explicit safety-research framing. |
+| Frontier teacher refuses too much during data gen       | Medium     | Paper 2 R8 already saw this with `gpt-4o-mini` (37/40 refusals on translation). Smoke test §15 gates bulk spend at ≤ 10% teacher refusal; fallback to Llama-3.3-70B-Instruct with explicit safety-research framing. |
+| OpenRouter spend exceeds plan                           | Low        | Smoke test (§15) lands at <$2 before bulk; cost ledger (§6.5) caps at $200 with named cost-control levers.  |
 | Compute slip                                            | Low        | Single-anchor pilot (Qwen-2.5-3B only) ships in 2 weeks; full sweep in 8.                                   |
 | Reviewer says "you re-used Paper-2 prompts as train"     | Certain    | Train/dev/holdout discipline §5 + cross-lingual eval-only + held-out subcategory split §8.3 are the answer; document loudly. |
+| Reviewer says "only 800 pairs is too small for DPO"     | High       | Citation row from comparable methods (Safe LoRA, NSPO, SaLoRA: 600-2,000) + 4× ablation point on Qwen-2.5-3B (§5.4). |
 
 **Pivot trigger.** If the Qwen-2.5-3B pilot (week 6) shows <10 pp toxicity refusal lift from RD-DPO over LoRA-DPO, we pivot to a different framing in week 7 — most likely a "Romanian alignment dataset and training recipe" applied paper at RANLP 2027 or the TrustNLP workshop, with the layer-selection ablation deferred to Paper 4.
 
@@ -261,3 +310,49 @@ Secondary ablations (Qwen-2.5-3B unless noted):
 - We will **not** make Paper 4's mechanistic-interpretability claims here. The probe is used as a *parameter selector*; we don't need to argue *why* the refusal direction works at the Anthropic-circuit level. That argument is Paper 4.
 - We will **not** evaluate on more than the three anchor models for the full method sweep. The scaling track on Qwen-2.5 covers within-family variation. Adding Mistral / Phi-4 / SmolLM2 doubles compute without proportional reviewer-impact gain.
 - We will **not** attempt a multi-language generalisation pitch (RO + 4 European LR languages). That's tempting and slot-able as Paper 6's framing later, but doubles surface area and weakens the Romanian-headline narrative.
+
+
+## 15. Fail-safety register (OpenRouter spend protection)
+
+Six failure modes that historically waste budget, with concrete defences. Every one of these is implemented before notebook 02 sees a bulk run.
+
+### 15.1 Locked teacher prompt + smoke test
+
+- The teacher style prompt (METHOD §3.4) is a single string applied to every harmful-side `chosen` generation. A bad prompt on a 600-call run is ~$15 wasted.
+- **Defence.** A new `experiments/00_pilot_smoke_test.ipynb` runs one example per harm subcategory through the full teacher → judge pipeline (~50 calls, ~$1.50). It displays the resulting pairs side-by-side and prints a budget estimate. Bulk Stage 2 will not start until `00_pilot_smoke_test.ipynb` has been run and a `smoke_ok=True` flag is present in `data/preferences/<short>/smoke.json`.
+
+### 15.2 Frozen prompt strings, single source of truth
+
+- Cache keys are `sha256(model || system || user)`. A single whitespace shift invalidates the cache and re-bills.
+- **Defence.** `TEACHER_SYSTEM`, `JUDGE_SYSTEM`, and the user-message templates live as module-level constants in a small helper file. Both notebook 02 and notebook 04 import them. A "do not edit at runtime" comment is mandatory; any change requires a version bump in the cache namespace.
+
+### 15.3 Append-and-flush on every record
+
+- Colab kills runtimes at 12 h or on idle. Holding stage-1 results in a Python list and writing at the end loses partial progress on kernel death.
+- **Defence.** Already in place — every per-pair record is appended to JSONL on Drive immediately. Hardening: explicit `f.flush(); os.fsync(f.fileno())` after every line and `PYTHONUNBUFFERED=1` set in the bootstrap cell. Resume cells at the top of Stage 1 and Stage 2 read the JSONL and skip done keys.
+
+### 15.4 Teacher-refusal-on-research gate
+
+- Paper 2 R8: GPT-4o-mini refused 37/40 HarmBench-style RO translations. If Claude Opus 4.7 does the same, we burn cost on `[empty]` chosen responses that fail the verification judge.
+- **Defence.** The smoke test records `teacher_refusal_rate` over its 50-prompt sample. If `> 10%`, notebook 02 prints a hard-stop message and refuses to proceed. Operator must either (a) revise the teacher style prompt and re-run the smoke test, or (b) set `TEACHER = TEACHER_FALLBACK` (Llama-3.3-70B-Instruct via Together).
+
+### 15.5 Reasoning-token overrun protection
+
+- Paper 2 R10: GPT-5.5 Pro consumed 256 tokens of internal reasoning before any visible output, producing 71 silent empties. Claude Opus 4.7 is also a reasoning model.
+- **Defence.** Teacher `max_tokens=1024` (3× actual response budget of ~300 tokens). We are billed only for actual completion tokens, so no spend increase from the higher cap. Capture `usage.reasoning_tokens` per response. Smoke test aborts if any response has `reasoning_tokens / max_tokens > 0.5`.
+
+### 15.6 Concurrency cap on the teacher endpoint
+
+- `Judge.classify_many(workers=8)` does not deduplicate concurrent requests. A 429 storm can produce duplicate billed calls.
+- **Defence.** Concurrency capped at `workers=4` for the teacher (slow expensive endpoint); `workers=8` only for the judge endpoint. Explicit in the notebook config cell.
+
+### 15.7 Pre-flight gate cell in notebook 02
+
+- All of the above are implemented as a single explicit pre-flight cell at the top of notebook 02 that:
+  1. Verifies `smoke.json` exists with `smoke_ok=True` and timestamp within 7 days.
+  2. Prints the locked teacher prompt SHA-256.
+  3. Prints the budget estimate (per-anchor and total) from the cost ledger §6.5.
+  4. Prints the OpenRouter monthly cap from the OpenRouter API.
+  5. Asks for an explicit `y` keystroke before bulk run begins.
+
+The pre-flight cell costs ~30 seconds of friction per anchor and eliminates the named failure modes above.

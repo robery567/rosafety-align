@@ -81,22 +81,28 @@ For each train prompt `x`:
 
 1. **Sample base completion.** Generate `n = 8` completions from the base model `M` at temperature 1, top-p 0.95, max 256 tokens. Score each with the same `gpt-5-mini` refusal judge used in Paper 2.
 2. **Pick rejected.** First completion judged `compliance` is `r`. If none, drop the prompt — there is no "rejected" signal to align against.
-3. **Generate chosen.** Query the teacher `T` with the prompt `x` plus a Romanian-aware refusal-style system prompt (see §3.4). Sample at temperature 0 for determinism. Verify with the same judge that the response is `refusal`. If `compliance`, drop the pair (rare; teacher pipeline failure).
-4. **Emit pair.** `(x, chosen=teacher_response, rejected=r)` with full metadata: model versions, judge labels, sampling params, timestamp.
+3. **Generate chosen.** Two cases:
+   - Harmful prompt → query `anthropic/claude-opus-4.7` (frontier teacher) under the locked Romanian-aware refusal-style system prompt (§3.4 harmful-side). Sample at temperature 0 for determinism. Verify with the judge that the response is `refusal`. If `compliance`, drop the pair (rare; teacher pipeline failure).
+   - Benign prompt (over-refusal counter-pair) → query `meta-llama/Llama-3.3-70B-Instruct` via Together under the benign-side system prompt (§3.4 benign-side). Sample at temperature 0. Verify with the judge that the response is `compliance` (the helpful answer should *not* be a refusal).
+4. **Emit pair.** `(x, chosen, rejected)` with full metadata: model versions, judge labels, sampling params, finish_reason, completion + reasoning token counts, timestamp.
 
-Yield rate (estimated): ~70% of train prompts yield a pair. ~570 prompts × 70% ≈ 400 pairs from RoSafetyBench-only.
+Yield rate (estimated): ~70% of harmful train prompts yield a pair; ~95% of benign counter-prompts yield a pair.
 
-### 3.3 Augmentations
+### 3.3 Composition target (~800 pairs per anchor)
 
-To reach the 10-15K-pair target and to get the right behavioural mix:
+| Component | Pairs | Source intents | Teacher |
+|---|---|---|---|
+| Core harmful | ~400 | Toxicity / jailbreak / bias train splits | Claude Opus 4.7 |
+| Cross-lingual harmful | ~200 | RO harmful prompts paired with EN translations; chosen = teacher RO refusal, rejected = base evaluatee EN compliance translated to RO via mechanical MT | Claude Opus 4.7 |
+| Over-refusal counter | ~200 | Benign RO prompts (cooking, language-learning, first-aid, civic information, regional history); chosen = helpful answer, rejected = apologetic refusal | Llama-3.3-70B-Instruct |
 
-- **Cross-lingual preference pairs (~200).** Take an EN harmful prompt + its RO translation; emit a pair where chosen = teacher RO refusal, rejected = base evaluatee EN compliance translated to RO with mechanical MT (so the lexical surface matches the prompt language). Tests cross-lingual transfer.
-- **Over-refusal counter-pairs (~200).** **Critical, not stretch.** Pair benign Romanian prompts (cooking, language-learning, first-aid, civic information, regional history) with chosen = helpful answer, rejected = apologetic refusal. Without this, the over-refusal axis blows up — Paper 2 already showed that the worst Qwen-2.5-0.5B over-refusal rate is 53% from much weaker training pressure.
-- **Diversity expansion (~14K).** Generate variant prompts from each train seed via teacher rephrasing (preserve intent, vary surface form, vary length, vary register: formal/colloquial/regional). Each variant runs through §3.2 to produce its own pair. This is where the bulk of the preference set comes from.
+**Mixed-teacher justification.** Harmful-side `chosen` carries the refusal-style alignment signal — frontier-tier needed. Benign-side `chosen` carries a capability-preservation signal — any decent open-weight teacher is sufficient. This asymmetry is named explicitly in the manuscript and in PAPER3_PLAN §5.1.
 
-Final dataset target: ~10-15K pairs per anchor.
+This sits in the same operating point as Safe LoRA (Hsu 2024, ~800-2,000), SaLoRA (Li 2024, ~1,000), and NSPO (Lin 2024, ~600). LoRA on 4 selected blocks bounds parameter capacity, which bounds useful dataset size; we defend this choice with a 4× ablation point on Qwen-2.5-3B (PAPER3_PLAN §5.4).
 
-### 3.4 Teacher style prompt (locked at week 1)
+### 3.4 Teacher style prompts (locked at week 1)
+
+Harmful-side teacher (Claude Opus 4.7):
 
 ```
 You are a helpful Romanian-speaking assistant. When the user asks for
@@ -113,11 +119,19 @@ When the user asks for something benign, answer normally and helpfully
 in Romanian.
 ```
 
-The exact wording is locked, version-controlled, and quoted in the manuscript appendix. Changes after data generation begins require regenerating the affected pairs.
+Benign-side teacher (Llama-3.3-70B-Instruct):
+
+```
+You are a helpful Romanian-speaking assistant. Answer the user's question
+helpfully, factually, and concisely in fluent Romanian. Do not refuse or
+hedge unless the question is genuinely harmful.
+```
+
+Both wordings are locked as module-level constants (PAPER3_PLAN §15.2), version-controlled, and quoted in the manuscript appendix. Changes after data generation begins require regenerating the affected pairs and a cache-namespace bump.
 
 ### 3.5 Translated-EN-preference control
 
-Take 10K pairs from Anthropic HH-RLHF; pass `prompt`, `chosen`, `rejected` through Google Translate (mechanical, not LLM-MT — Paper 2 R8 lesson: LLM translators refuse on harmful content). Train identical recipe.
+Take 10K pairs from Anthropic HH-RLHF; pass `prompt`, `chosen`, `rejected` through Google Translate (mechanical, not LLM-MT — Paper 2 R8 lesson: LLM translators refuse on harmful content). Train identical recipe. **One-time generation, shared across all three anchors.**
 
 This is the central "are RO-native preferences worth the effort" comparison. If RD-DPO with translated preferences ≈ RD-DPO with native preferences, the data-pipeline contribution shrinks and the paper has to lean entirely on the layer-selection contribution. If native >> translated, both contributions stand.
 
