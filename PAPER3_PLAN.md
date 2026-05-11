@@ -152,26 +152,59 @@ Total method-track sweep ≈ 60-80 A100-hours. Fits in 1-2 months of Colab Pro+ 
 
 ### 6.5 OpenRouter cost ledger
 
-Locked May 11 2026. Re-validate at the smoke-test gate (§15) before bulk spend.
+Locked May 11 2026; **revised** May 11 2026 (evening) after the Stage-1 +
+Stage-2 pilot data on Qwen-2.5-3B. Re-validate at the smoke-test gate (§15)
+before bulk spend.
+
+**Empirical yield (Qwen-2.5-3B, n=110 train prompts, v3 prompt):**
+
+  - Stage 1 yield (rejected-sample harvested): 92% overall, with
+    bias 100%, jailbreak 89%, toxicity 82%.
+  - Stage 2 yield (Claude refusal that survives the verification judge):
+    22% overall, with bias 26%, jailbreak 38%, toxicity 12%.
+  - Per-prompt determinism between repeated v3 runs: 89% (Claude Opus 4.7
+    is not perfectly deterministic at temperature 0; expected behaviour
+    documented as a sub-paragraph note in EXPERIMENT_LOG).
+  - End-to-end yield: ~22% × 343 train prompts = ~75 core pairs/anchor.
+
+This is significantly lower than the 70% yield assumed in the May 11
+morning ledger. The shortfall traces to Paper 2's `harmful` tags being
+noisier than expected on toxicity (many tagged-toxicity rows are political
+tweets or garbled mistranslations that Claude correctly engages with).
+Two prompt iterations confirmed the 22% number is data-driven, not
+prompt-driven (v2 prompt experiment, see EXPERIMENT_LOG).
 
 | Item | Calls | Per-call | Subtotal |
 |---|---|---|---|
-| Notebook 00 — pilot smoke test (50 teacher + 50 judge) | 100 | mixed | ~$2 |
-| Notebook 02 — Qwen-2.5-3B prefs (600 Opus harmful + 200 Llama-70B benign + ~2,800 stage-1 judges + ~800 verification judges) | ~4,400 | mixed | ~$22 |
-| Notebook 02 — Llama-3.2-3B prefs (same composition) | ~4,400 | mixed | ~$22 |
-| Notebook 02 — Gemma-3-4B prefs (same composition, abbreviated condition sweep) | ~4,400 | mixed | ~$22 |
+| Notebook 00 — pilot smoke test (50 teacher + 50 judge) | 100 | mixed | ~$0.30 |
+| Notebook 02 — Qwen-2.5-3B prefs (~75 Opus harmful core + ~200 Llama-70B benign + ~2,800 stage-1 judges + ~600 verification judges) | ~3,675 | mixed | ~$5 |
+| Notebook 02 — Llama-3.2-3B prefs (same composition) | ~3,675 | mixed | ~$5 |
+| Notebook 02 — Gemma-3-4B prefs (same composition, abbreviated condition sweep) | ~3,675 | mixed | ~$5 |
+| Stage 4 augmentation (cross-lingual ~200 + over-refusal counter ~200, all 3 anchors) | ~2,400 | mixed | ~$30 |
 | Notebook 04 — safety eval (3 anchors × 5 conditions × 3 seeds × ~500 judge calls) | ~22,500 | $0.001 | ~$23 |
 | Notebook 05 — RO-QA judging (45 runs × 50 calls) | ~2,250 | $0.001 | ~$3 |
 | Second-rater κ audit (one-time, claude-opus-4.5 on 200 stratified) | 200 | $0.025 | ~$5 |
-| Reviewer-pre-empt: Qwen-2.5-3B at 4× data ablation (one extra preference build) | ~3,200 | mixed | ~$12 |
-| **Headline budget** | | | **~$111** |
-| Safety pad for retries / failed teacher prompt iterations / mid-run fixes | | | +$50 |
+| Reviewer-pre-empt: Qwen-2.5-3B at 4× data ablation (one extra preference build) | ~3,200 | mixed | ~$5 |
+| **Headline budget** | | | **~$81** |
+| Safety pad for retries / partial regenerations / mid-run fixes | | | +$50 |
 | **Recommended OpenRouter cap** | | | **$200** |
 
-The safety pad assumes Paper 2 R8 / R10-style discoveries that need a partial regeneration. A *full* regeneration of preferences for one anchor costs ~$22, comfortably inside the pad. Two such re-runs across the project still keeps us under $200.
+**Pair-count accounting** (per anchor, conservative):
+
+  - Core harmful : ~75 (was 400)
+  - Cross-lingual: ~200 (Stage 4)
+  - Over-refusal counter: ~200 (Stage 4)
+  - Total: **~475 pairs/anchor** (was 800).
+
+This is at the bottom of the literature operating point (Safe LoRA
+800-2000, NSPO ~600, SaLoRA ~1000). With LoRA-on-4-blocks bounding
+parameter capacity, ~475 pairs is defensible but tight; the 4× ablation
+on Qwen-2.5-3B (3,200 pairs) becomes more important for the reviewer
+pre-empt rather than less, since it has to anchor "more data does not
+help" with a wider gap.
 
 Cost-control levers if we exceed budget:
-1. Drop the 4× ablation (-$12) — costs us a reviewer-pre-empt argument, manageable.
+1. Drop the 4× ablation (-$5) — costs us a reviewer-pre-empt argument, manageable.
 2. Drop Gemma-3-4B's `dpo-full` and `safe-lora` baselines (-$8) — we already abbreviate this anchor's sweep.
 3. Drop the second-rater κ audit (-$5) — would cost cross-paper κ consistency; do not pull this lever.
 
