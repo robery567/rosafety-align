@@ -41,6 +41,10 @@ experiments/judge_*.jsonl
 # data on Drive, not in the repo.
 data/smoke/
 
+# Per-anchor smoke-gate marker files written by notebook 00 and read by
+# notebook 02's pre-flight cell. Operational state, not code or data.
+data/preferences/*/smoke.json
+
 # Local working files
 *.swp
 *.bak

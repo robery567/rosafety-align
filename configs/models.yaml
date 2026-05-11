@@ -13,13 +13,13 @@ anchors:
     paper2_baseline: {tox: 0.333, jb: 0.330, xl: 0.222}
 
   - id: meta-llama/Llama-3.2-3B-Instruct
-    short: llama3.2-3b
+    short: llama-3.2-3b
     family: llama
     params: 3B
     paper2_baseline: {tox: 0.161, jb: 0.237, xl: 0.160}
 
   - id: google/gemma-3-4b-it
-    short: gemma3-4b
+    short: gemma-3-4b
     family: gemma3
     params: 4B
     paper2_baseline: {tox: 0.349, jb: 0.505, xl: 0.210}
