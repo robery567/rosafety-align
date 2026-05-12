@@ -47,7 +47,7 @@ Blocks are ranked by `s_ℓ` descending; the top-k are selected. **Default k = 4
 ### 2.3 Sanity checks (must all pass before §3 runs)
 
 1. `s_ℓ` distribution must have a clear peak — top-k should be ≥ 2× the bottom-k mean. If flat, the probe is uninformative for this model and we either re-run with a larger `D_probe` or fall back to all-layer LoRA for that anchor (and call it out as a methodological limitation).
-2. The selected blocks must be in the **mid-to-late** part of the network (typically blocks `B/2`-ish through `B−2`). Refusal directions in early blocks (< `B/4`) are usually input-feature artefacts and should be excluded post-hoc; if the top-k contains an early block we replace it with the next-ranked late block and log the swap.
+2. The selected blocks must be in the **mid-to-late** part of the network (typically blocks `B/2`-ish through `B−2`). Refusal directions in early blocks (< `B/4`) are usually input-feature artefacts and should be excluded post-hoc; if the top-k contains an early block we replace it with the next-ranked late block and log the swap. Symmetrically, refusal directions in the **final 2 blocks** (`≥ B−2`) are the unembedding-adjacent region rather than an internal circuit; we drop those too. The two-sided cutoff was added after the May 12 three-anchor probe sweep where Qwen-2.5-3B and Llama-3.2-3B both peaked in the last 10% of layers; with the cutoff in place all three anchors land in the 0.71-0.94 depth band.
 3. Cross-model consistency: the selected layer indices for Qwen-2.5-3B at temperature 0 vs temperature 1 sampling of `D_probe` activations must match in ≥ k−1 of k positions. If not, the probe is too noisy and `D_probe` is doubled.
 
 ### 2.4 Caching

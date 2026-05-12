@@ -55,6 +55,19 @@ data/preferences/*/stage2_chosen.jsonl
 data/preferences/*/preferences_v*.jsonl
 data/preferences/*/preferences_v*.meta.json
 
+# Per-anchor refusal-direction probe artefacts (Drive-only; reproducible
+# from the frozen probe set and seed). Hidden states, block scores,
+# selected blocks, and meta all live on Drive. Public release will copy
+# selected_blocks.json + meta.json into the Zenodo deposit; the bulky
+# hidden_states.pt stays Drive-only.
+data/probes/probe_set.jsonl
+data/probes/*/hidden_states.pt
+data/probes/*/block_directions.pt
+data/probes/*/block_scores.json
+data/probes/*/selected_blocks.json
+data/probes/*/meta.json
+data/probes/*/score_curve.png
+
 # Train / dev / holdout assignment file -- regenerable from seed 0xBADA55
 # in notebook 02, kept on Drive only.
 data/splits/split_v*.json
