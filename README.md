@@ -61,10 +61,12 @@ paper3-alignment/
 ├── configs/
 │   ├── models.yaml          # Anchor + scaling track registry
 │   └── training.yaml        # DPO / LoRA / RD-DPO hyperparams
-├── data/
-│   ├── preferences/          # Synthetic preference pairs (released)
-│   ├── probes/               # Refusal-direction artefacts (released)
-│   └── splits/               # Train/dev/holdout assignments
+├── data/                     # operational Drive-only state (gitignored)
+│   ├── preferences/<short>/      # per-anchor synthetic pairs (released to Zenodo)
+│   ├── probes/<short>/            # per-anchor refusal-direction artefacts
+│   ├── augmentation/<short>/      # per-anchor Stage 4 stream caches
+│   ├── smoke/                    # smoke-gate audit JSONLs
+│   └── splits/                   # train/dev/holdout assignment
 ├── src/
 │   └── (small shared library helpers; sys.path-imported from notebooks
 │        when reused across more than one notebook — judges shim, augmentation

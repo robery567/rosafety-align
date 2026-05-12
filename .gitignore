@@ -35,47 +35,17 @@ manuscript/
 experiments/.judge_cache/
 experiments/judge_*.jsonl
 
-# Smoke-test artefacts (Drive-only; never tracked).
-# The smoke set is reproducible from the seed in the notebook; failure
-# dumps and per-pair audits are diagnostic state that lives next to the
-# data on Drive, not in the repo.
-data/smoke/
-
-# Per-anchor smoke-gate marker files written by notebook 00 and read by
-# notebook 02's pre-flight cell. Operational state, not code or data.
-data/preferences/*/smoke.json
-
-# Per-anchor preference pipeline artefacts (Drive-only; reproducible from
-# the seeds and prompts). Stage 1 rejected samples, Stage 2 chosen
-# samples, the assembled preference pairs, and the meta sidecar all live
-# on Drive. Public release will copy the assembled pairs to Zenodo + HF
-# under a dedicated v1 tag, not from this repo's working directory.
-data/preferences/*/stage1_rejected.jsonl
-data/preferences/*/stage2_chosen.jsonl
-data/preferences/*/preferences_v*.jsonl
-data/preferences/*/preferences_v*.meta.json
-
-# Stage 4 augmentation artefacts (Drive-only). HarmBench source CSV is
-# downloaded once and cached; the per-anchor stream JSONLs are
-# regenerable from the seed and the OpenRouter cache.
-data/augmentation/
-
-# Per-anchor refusal-direction probe artefacts (Drive-only; reproducible
-# from the frozen probe set and seed). Hidden states, block scores,
-# selected blocks, and meta all live on Drive. Public release will copy
-# selected_blocks.json + meta.json into the Zenodo deposit; the bulky
-# hidden_states.pt stays Drive-only.
-data/probes/probe_set.jsonl
-data/probes/*/hidden_states.pt
-data/probes/*/block_directions.pt
-data/probes/*/block_scores.json
-data/probes/*/selected_blocks.json
-data/probes/*/meta.json
-data/probes/*/score_curve.png
-
-# Train / dev / holdout assignment file -- regenerable from seed 0xBADA55
-# in notebook 02, kept on Drive only.
-data/splits/split_v*.json
+# data/ is operational Drive-only state. Notebooks create the relevant
+# subdirectories on first run (data/probes/<short>/, data/preferences/<short>/,
+# data/augmentation/<short>/, etc) via Path.mkdir(parents=True). Public release
+# copies the assembled preference dataset, the probe `selected_blocks.json`,
+# and the smoke marker into the Zenodo deposit; nothing under data/ is tracked
+# in this repo.
+#
+# This wholesale ignore replaces an earlier attempt to track empty .gitkeep
+# files (then small README.md files) inside data/<subdir>/. Drive sync silently
+# deletes both pattern types, so we stopped tracking data/ at all.
+data/
 
 # Local working files
 *.swp
