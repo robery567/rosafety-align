@@ -35,6 +35,13 @@ manuscript/
 experiments/.judge_cache/
 experiments/judge_*.jsonl
 
+# Trained LoRA adapters and full-model snapshots (Drive-only).
+# Per-anchor adapters live in adapters/<short>__<condition>__seed<S>/
+# and are multi-MB (LoRA on 4 blocks ~13MB; full DPO ~5GB). Public release
+# uploads selected adapters to HuggingFace under a dedicated rosafety-align
+# org; the working tree never carries them.
+adapters/
+
 # data/ is operational Drive-only state. Notebooks create the relevant
 # subdirectories on first run (data/probes/<short>/, data/preferences/<short>/,
 # data/augmentation/<short>/, etc) via Path.mkdir(parents=True). Public release
