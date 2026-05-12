@@ -55,6 +55,11 @@ data/preferences/*/stage2_chosen.jsonl
 data/preferences/*/preferences_v*.jsonl
 data/preferences/*/preferences_v*.meta.json
 
+# Stage 4 augmentation artefacts (Drive-only). HarmBench source CSV is
+# downloaded once and cached; the per-anchor stream JSONLs are
+# regenerable from the seed and the OpenRouter cache.
+data/augmentation/
+
 # Per-anchor refusal-direction probe artefacts (Drive-only; reproducible
 # from the frozen probe set and seed). Hidden states, block scores,
 # selected blocks, and meta all live on Drive. Public release will copy
