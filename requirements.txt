@@ -7,6 +7,7 @@ bitsandbytes>=0.44
 # Alignment training
 trl>=0.11             # DPO, KTO, ORPO trainers
 peft>=0.13            # LoRA / probe-guided LoRA
+torchao>=0.16         # PEFT 0.13+ requires torchao 0.16 symbols (Colab ships 0.10)
 deepspeed>=0.15       # only used when full-DPO baseline OOMs on A100-40G
 datasets>=3.0
 
