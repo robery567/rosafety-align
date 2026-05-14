@@ -139,6 +139,19 @@ def family_of(anchor_id: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Anchor list (locked at submission)
+# ---------------------------------------------------------------------------
+# Single source of truth for the three Paper 3 anchors. Notebooks 01, 02,
+# 03, 04, 05 all import this list and loop over it in their batch cells so
+# nothing needs to be edited in-notebook to switch anchor.
+ANCHORS: list[str] = [
+    "Qwen/Qwen2.5-3B-Instruct",
+    "meta-llama/Llama-3.2-3B-Instruct",
+    "google/gemma-3-4b-it",
+]
+
+
+# ---------------------------------------------------------------------------
 # Smoke-gate verification
 # ---------------------------------------------------------------------------
 SMOKE_FRESHNESS_DAYS = 7    # PAPER3_PLAN section 15.7
@@ -234,6 +247,7 @@ __all__ = [
     "JUDGE_SYSTEM",
     "JUDGE_USER_TEMPLATE",
     "PROMPT_DIGESTS",
+    "ANCHORS",
     "sha16",
     "short_of",
     "family_of",
