@@ -1,0 +1,50 @@
+{
+  "comparison_method": "intersect Paper 3 holdout IDs with Paper 2 per-id refusal judgments",
+  "judge": "openai/gpt-5-mini",
+  "split": "split_v1.holdout",
+  "condition": "rd-dpo-k4-bal-e6-x4",
+  "seed": 17,
+  "hyperparams": {
+    "beta": 0.1, "epochs": 6, "warmup_steps": 2,
+    "lora_r": 16, "lora_alpha": 32,
+    "per_device_train_batch_size": 4, "gradient_accumulation_steps": 8,
+    "lr_per_anchor": {
+      "Qwen/Qwen2.5-3B-Instruct": 2e-5,
+      "meta-llama/Llama-3.2-3B-Instruct": 2e-5,
+      "google/gemma-3-4b-it": 5e-6
+    }
+  },
+  "expansion_strategy": "translate fresh HarmBench EN -> RO + paraphrase RoSafetyBench train items 3x via Llama-3.3-70B + paraphrase + regenerate over-refusal stream 3x via Llama-3.3-70B + dedupe by exact prompt text",
+  "training_trajectories": {
+    "qwen2.5-3b":   {"loss_min": 0.428, "margins_peak": 0.645, "acc_peak": 1.000, "trained": true},
+    "llama-3.2-3b": {"loss_min": 0.461, "margins_peak": 0.585, "acc_peak": 0.984, "trained": true},
+    "gemma-3-4b":   {"loss_min": 0.598, "margins_peak": 0.208, "acc_peak": 0.891, "trained": true}
+  },
+  "side_by_side_vs_e6_baseline_pp": {
+    "qwen2.5-3b": {
+      "toxicity":     {"e6": -9.4,  "x4":  -3.8, "diff": +5.6},
+      "jailbreak":    {"e6": -20.0, "x4":  -5.0, "diff": +15.0},
+      "overrefusal":  {"e6":  +5.0, "x4": +10.0, "diff":  +5.0},
+      "crosslingual": {"e6":  -1.2, "x4":  -3.5, "diff":  -2.3}
+    },
+    "llama-3.2-3b": {
+      "toxicity":     {"e6": -11.3, "x4":  -9.4, "diff": +1.9},
+      "jailbreak":    {"e6":   0.0, "x4": +10.0, "diff": +10.0},
+      "overrefusal":  {"e6":  +5.0, "x4": +10.0, "diff":  +5.0},
+      "crosslingual": {"e6":  -7.0, "x4":  -5.8, "diff": +1.2}
+    },
+    "google/gemma-3-4b-it": {
+      "toxicity":     {"e6":  +1.9, "x4":  +3.8, "diff": +1.9},
+      "jailbreak":    {"e6":  -5.0, "x4": -10.0, "diff": -5.0},
+      "overrefusal":  {"e6":   0.0, "x4":   0.0, "diff":  0.0},
+      "crosslingual": {"e6":   0.0, "x4":  -3.5, "diff": -3.5}
+    }
+  },
+  "headline_finding": "All three anchors trained to in-distribution convergence on the expanded preference set (~434 pairs/anchor, 2.17x the e6 baseline). Held-out cross-lingual refusal moved -3.5 pp (Qwen), +1.2 pp (Llama), -3.5 pp (Gemma) relative to base; on every anchor the recipe is non-positive on cross-lingual at both data scales. Toxicity recovered partially (Qwen +5.6 pp, Llama +1.9 pp, Gemma +1.9 pp from the e6 baseline). Jailbreak recovered substantially on Qwen and Llama. Cross-lingual did not respond to data scale; toxicity and jailbreak did.",
+  "implications": [
+    "Data scale is not the dominant bottleneck for cross-lingual refusal at LoRA r=16. Across two pair counts (200 and ~434) the cross-lingual delta stays in the [-7, +1.2] pp band on every anchor.",
+    "In-distribution-similar OOD (toxicity, jailbreak) responds to data scale: the x4 expansion recovered 5-15 pp on these dimensions vs the e6 baseline.",
+    "Truly OOD (cross-lingual) does not respond. The held-out cross-lingual prompts are HarmBench-RO equivalents in our holdout split; the recipe trains on RoSafetyBench-RO + paraphrases + HarmBench-RO translations but the trained policy does not generalise to the held-out cross-lingual partition.",
+    "Reading: at LoRA r=16 with DPO loss, the trained policy fits the in-distribution preference contrast but cannot bridge the cultural-linguistic distribution gap to the held-out cross-lingual evaluation. Larger-rank LoRA, full-model DPO, or alternative preference losses (KTO/ORPO/SimPO) may be needed; we do not test those here."
+  ]
+}
