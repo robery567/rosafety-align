@@ -65,3 +65,13 @@ _abstract_check.txt
 
 # Internal experiment log — keep local only.
 EXPERIMENT_LOG.md
+
+# Throwaway tooling — diagnostic / validation scripts that live
+# outside the notebooks. Kept local to the operator workspace.
+_diag_*.py
+_patch_*.py
+_validate_*.py
+_compute_*.py
+_inspect_*.py
+_add_*.py
+_fix_*.py
