@@ -328,7 +328,87 @@ def fig_toxicity_vs_lr():
     print(f"wrote fig3-toxicity-vs-lr ({len(rows)} points)")
 
 
+# ---------------------------------------------------------------------------
+# Figure 4: data scale lifts in-distribution-similar OOD (toxicity) but not
+# truly OOD (cross-lingual). Two-panel comparison at the e6 baseline (~200
+# pairs/anchor, locked LR per anchor) versus the x4 expansion (~434
+# pairs/anchor, same LR per anchor). Every cell is delta-vs-base on the
+# Paper 3 holdout split.
+# ---------------------------------------------------------------------------
+
+def fig_x4_dissociation():
+    # Per-anchor representative trained run at each pair count.
+    # e6 baseline: best-trained representative from the LR sweep
+    #   (Qwen+Llama at lr=2e-5; Gemma at lr=5e-6 from rd-dpo-k4-bal-e6).
+    # x4 expansion: rd-dpo-k4-bal-e6-x4 at the per-anchor working LR.
+    e6_runs = {
+        "qwen2.5-3b":   "rd-dpo-k4-bal-e6-lr2e5",
+        "llama-3.2-3b": "rd-dpo-k4-bal-e6-lr2e5",
+        "gemma-3-4b":   "rd-dpo-k4-bal-e6",
+    }
+    x4_run = "rd-dpo-k4-bal-e6-x4"
+
+    dims = ["toxicity", "jailbreak", "overrefusal", "crosslingual"]
+    dim_labels = ["Toxicity", "Jailbreak", "Over-refusal", "Cross-lingual"]
+
+    e6_deltas, x4_deltas, ns = {}, {}, {}
+    for short in ANCHOR_COLOR:
+        e6 = _delta_for(short, e6_runs[short])
+        x4 = _delta_for(short, x4_run)
+        if e6 is None or x4 is None:
+            print(f"  missing data for {short}; skipping in fig4")
+            continue
+        e6_deltas[short] = {dim: e6[dim]["delta"] * 100 for dim in dims if e6[dim]}
+        x4_deltas[short] = {dim: x4[dim]["delta"] * 100 for dim in dims if x4[dim]}
+        ns[short]        = {dim: x4[dim]["n"] for dim in dims if x4[dim]}
+
+    fig, axes = plt.subplots(1, 3, figsize=(11.0, 3.6), sharey=True)
+    width = 0.36
+    x = np.arange(len(dims))
+
+    for ax, short in zip(axes, ANCHOR_COLOR):
+        if short not in e6_deltas: continue
+        e6_y = [e6_deltas[short].get(d, 0.0) for d in dims]
+        x4_y = [x4_deltas[short].get(d, 0.0) for d in dims]
+        ax.bar(x - width/2, e6_y, width,
+               color=ANCHOR_COLOR[short], alpha=0.45,
+               edgecolor="black", linewidth=0.6, label="e6 (~200 pairs)")
+        ax.bar(x + width/2, x4_y, width,
+               color=ANCHOR_COLOR[short],
+               edgecolor="black", linewidth=0.6, label="x4 (~434 pairs)")
+        # Annotate values in pp
+        for xi, y in zip(x - width/2, e6_y):
+            va = "bottom" if y >= 0 else "top"
+            ax.text(xi, y + (0.4 if y >= 0 else -0.4),
+                    f"{y:+.0f}", ha="center", va=va, fontsize=7)
+        for xi, y in zip(x + width/2, x4_y):
+            va = "bottom" if y >= 0 else "top"
+            ax.text(xi, y + (0.4 if y >= 0 else -0.4),
+                    f"{y:+.0f}", ha="center", va=va, fontsize=7)
+        ax.axhline(0, color="black", linewidth=0.7)
+        ax.set_xticks(x)
+        ax.set_xticklabels(dim_labels, fontsize=8, rotation=20, ha="right")
+        ax.set_title(ANCHOR_DISPLAY[short], fontsize=10)
+        ax.grid(True, axis="y", alpha=0.25)
+        ax.set_ylim(-25, 18)
+        ax.legend(loc="lower left", fontsize=7, frameon=False)
+
+    axes[0].set_ylabel("Δ refusal rate (rd-dpo − base, pp)")
+
+    fig.suptitle("Data scale lifts in-distribution-similar OOD but not "
+                 "truly OOD on Romanian", fontsize=10)
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
+
+    for out_dir in (FIGS_REPO, FIGS_MS):
+        out_dir.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out_dir / "fig4-x4-dissociation.pdf", bbox_inches="tight")
+        fig.savefig(out_dir / "fig4-x4-dissociation.png", bbox_inches="tight", dpi=200)
+    plt.close(fig)
+    print(f"wrote fig4-x4-dissociation ({len(e6_deltas)} anchors x 2 conditions x {len(dims)} dims)")
+
+
 if __name__ == "__main__":
     fig_trajectories()
     fig_multi_anchor_delta()
     fig_toxicity_vs_lr()
+    fig_x4_dissociation()
