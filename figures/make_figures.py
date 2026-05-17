@@ -330,72 +330,90 @@ def fig_toxicity_vs_lr():
 
 # ---------------------------------------------------------------------------
 # Figure 4: data scale lifts near-OOD (toxicity) but not far-OOD
-# (cross-lingual). Two-panel comparison at the e6 baseline (~200
-# pairs/anchor, locked LR per anchor) versus the x4 expansion (~434
-# pairs/anchor, same LR per anchor). Every cell is delta-vs-base on the
-# Paper 3 holdout split.
+# (cross-lingual). Three-panel comparison at the e6 baseline (~200
+# pairs/anchor) versus the x4 expansion (~434 pairs/anchor), with bars
+# showing the seed-aggregated mean across {17, 1729, 65537} and error
+# bars showing the standard error of the mean per cell. Numbers are
+# read from results/multi_anchor_delta_vs_base__seed-sweep.json.
 # ---------------------------------------------------------------------------
 
+import re as _re_for_loose_json
+_LOOSE_PLUS_RE = _re_for_loose_json.compile(r'(?<=[\s:\[,])\+([0-9])')
+
+
+def _load_loose_json(path):
+    """Read a JSON file that may contain `+N` numeric tokens (the
+    seed-sweep aggregator emits them for readability)."""
+    txt = Path(path).read_text()
+    return json.loads(_LOOSE_PLUS_RE.sub(r'\1', txt))
+
+
 def fig_x4_dissociation():
-    # Per-anchor representative trained run at each pair count.
-    # e6 baseline: best-trained representative from the LR sweep
-    #   (Qwen+Llama at lr=2e-5; Gemma at lr=5e-6 from rd-dpo-k4-bal-e6).
-    # x4 expansion: rd-dpo-k4-bal-e6-x4 at the per-anchor working LR.
-    e6_runs = {
-        "qwen2.5-3b":   "rd-dpo-k4-bal-e6-lr2e5",
-        "llama-3.2-3b": "rd-dpo-k4-bal-e6-lr2e5",
-        "gemma-3-4b":   "rd-dpo-k4-bal-e6",
-    }
-    x4_run = "rd-dpo-k4-bal-e6-x4"
+    seed_path = RES_DIR / "multi_anchor_delta_vs_base__seed-sweep.json"
+    if not seed_path.exists():
+        print(f"  missing {seed_path}; skipping fig4 (run seed-sweep cells in nb04)")
+        return
+    sweep = _load_loose_json(seed_path)
 
     dims = ["toxicity", "jailbreak", "overrefusal", "crosslingual"]
     dim_labels = ["Toxicity", "Jailbreak", "Over-refusal", "Cross-lingual"]
 
-    e6_deltas, x4_deltas, ns = {}, {}, {}
+    e6_mean, e6_se, x4_mean, x4_se = {}, {}, {}, {}
     for short in ANCHOR_COLOR:
-        e6 = _delta_for(short, e6_runs[short])
-        x4 = _delta_for(short, x4_run)
-        if e6 is None or x4 is None:
-            print(f"  missing data for {short}; skipping in fig4")
+        block = sweep["seed_aggregated"].get(short)
+        if block is None or "e6" not in block or "x4" not in block:
+            print(f"  missing seed-aggregated data for {short}; skipping in fig4")
             continue
-        e6_deltas[short] = {dim: e6[dim]["delta"] * 100 for dim in dims if e6[dim]}
-        x4_deltas[short] = {dim: x4[dim]["delta"] * 100 for dim in dims if x4[dim]}
-        ns[short]        = {dim: x4[dim]["n"] for dim in dims if x4[dim]}
+        e6_mean[short] = {d: (block["e6"].get(d) or {}).get("mean", 0.0) for d in dims}
+        e6_se[short]   = {d: (block["e6"].get(d) or {}).get("se", 0.0) or 0.0 for d in dims}
+        x4_mean[short] = {d: (block["x4"].get(d) or {}).get("mean", 0.0) for d in dims}
+        x4_se[short]   = {d: (block["x4"].get(d) or {}).get("se", 0.0) or 0.0 for d in dims}
 
     fig, axes = plt.subplots(1, 3, figsize=(11.0, 3.6), sharey=True)
     width = 0.36
     x = np.arange(len(dims))
 
     for ax, short in zip(axes, ANCHOR_COLOR):
-        if short not in e6_deltas: continue
-        e6_y = [e6_deltas[short].get(d, 0.0) for d in dims]
-        x4_y = [x4_deltas[short].get(d, 0.0) for d in dims]
+        if short not in e6_mean:
+            continue
+        e6_y  = [e6_mean[short][d] for d in dims]
+        e6_e  = [e6_se[short][d]   for d in dims]
+        x4_y  = [x4_mean[short][d] for d in dims]
+        x4_e  = [x4_se[short][d]   for d in dims]
         ax.bar(x - width/2, e6_y, width,
+               yerr=e6_e, capsize=3, ecolor="black",
+               error_kw={"linewidth": 0.7},
                color=ANCHOR_COLOR[short], alpha=0.45,
                edgecolor="black", linewidth=0.6, label="e6 (~200 pairs)")
         ax.bar(x + width/2, x4_y, width,
+               yerr=x4_e, capsize=3, ecolor="black",
+               error_kw={"linewidth": 0.7},
                color=ANCHOR_COLOR[short],
                edgecolor="black", linewidth=0.6, label="x4 (~434 pairs)")
-        # Annotate values in pp
-        for xi, y in zip(x - width/2, e6_y):
-            va = "bottom" if y >= 0 else "top"
-            ax.text(xi, y + (0.4 if y >= 0 else -0.4),
-                    f"{y:+.0f}", ha="center", va=va, fontsize=7)
-        for xi, y in zip(x + width/2, x4_y):
-            va = "bottom" if y >= 0 else "top"
-            ax.text(xi, y + (0.4 if y >= 0 else -0.4),
-                    f"{y:+.0f}", ha="center", va=va, fontsize=7)
+        # Annotate mean values in pp (positioned above the bar's outer end,
+        # i.e. above the error bar tip on positive bars and below on negative).
+        for xi, y, e in zip(x - width/2, e6_y, e6_e):
+            tip = y + e if y >= 0 else y - e
+            va  = "bottom" if y >= 0 else "top"
+            ax.text(xi, tip + (0.5 if y >= 0 else -0.5),
+                    f"{y:+.1f}", ha="center", va=va, fontsize=7)
+        for xi, y, e in zip(x + width/2, x4_y, x4_e):
+            tip = y + e if y >= 0 else y - e
+            va  = "bottom" if y >= 0 else "top"
+            ax.text(xi, tip + (0.5 if y >= 0 else -0.5),
+                    f"{y:+.1f}", ha="center", va=va, fontsize=7)
         ax.axhline(0, color="black", linewidth=0.7)
         ax.set_xticks(x)
         ax.set_xticklabels(dim_labels, fontsize=8, rotation=20, ha="right")
         ax.set_title(ANCHOR_DISPLAY[short], fontsize=10)
         ax.grid(True, axis="y", alpha=0.25)
-        ax.set_ylim(-25, 18)
+        ax.set_ylim(-28, 22)
         ax.legend(loc="lower left", fontsize=7, frameon=False)
 
-    axes[0].set_ylabel("Δ refusal rate (rd-dpo − base, pp)")
+    axes[0].set_ylabel("Δ refusal rate (rd-dpo − base, pp)\nmean ± SE across seeds {17, 1729, 65537}")
 
-    fig.suptitle("Data scale lifts near-OOD but not far-OOD on Romanian",
+    fig.suptitle("Data scale lifts near-OOD but not far-OOD on Romanian "
+                 "(seed-aggregated, N=3 seeds/cell)",
                  fontsize=10)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
 
@@ -404,7 +422,7 @@ def fig_x4_dissociation():
         fig.savefig(out_dir / "fig4-x4-dissociation.pdf", bbox_inches="tight")
         fig.savefig(out_dir / "fig4-x4-dissociation.png", bbox_inches="tight", dpi=200)
     plt.close(fig)
-    print(f"wrote fig4-x4-dissociation ({len(e6_deltas)} anchors x 2 conditions x {len(dims)} dims)")
+    print(f"wrote fig4-x4-dissociation ({len(e6_mean)} anchors x 2 conditions x {len(dims)} dims, 3 seeds/cell)")
 
 
 if __name__ == "__main__":
