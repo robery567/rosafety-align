@@ -329,8 +329,8 @@ def fig_toxicity_vs_lr():
 
 
 # ---------------------------------------------------------------------------
-# Figure 4: data scale lifts in-distribution-similar OOD (toxicity) but not
-# truly OOD (cross-lingual). Two-panel comparison at the e6 baseline (~200
+# Figure 4: data scale lifts near-OOD (toxicity) but not far-OOD
+# (cross-lingual). Two-panel comparison at the e6 baseline (~200
 # pairs/anchor, locked LR per anchor) versus the x4 expansion (~434
 # pairs/anchor, same LR per anchor). Every cell is delta-vs-base on the
 # Paper 3 holdout split.
@@ -395,8 +395,8 @@ def fig_x4_dissociation():
 
     axes[0].set_ylabel("Δ refusal rate (rd-dpo − base, pp)")
 
-    fig.suptitle("Data scale lifts in-distribution-similar OOD but not "
-                 "truly OOD on Romanian", fontsize=10)
+    fig.suptitle("Data scale lifts near-OOD but not far-OOD on Romanian",
+                 fontsize=10)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
 
     for out_dir in (FIGS_REPO, FIGS_MS):
