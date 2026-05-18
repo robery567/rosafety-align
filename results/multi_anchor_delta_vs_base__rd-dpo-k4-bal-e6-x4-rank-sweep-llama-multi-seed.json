@@ -1,0 +1,508 @@
+{
+  "comparison_method": "intersect Paper 3 holdout IDs with Paper 2 per-id refusal judgments",
+  "judge": "openai/gpt-5-mini",
+  "split": "split_v1.holdout",
+  "experiment": "LoRA-rank ablation at fixed data scale (x4); Llama row multi-seed at r in {64, 128}",
+  "ranks_evaluated": [
+    16,
+    64,
+    128
+  ],
+  "shared_hyperparams": {
+    "beta": 0.1,
+    "epochs": 6,
+    "warmup_steps": 2,
+    "per_device_train_batch_size": 4,
+    "gradient_accumulation_steps": 8,
+    "rebalance": "down-sample help-side (overref) to match refuse-side (core_s2 + xl)",
+    "probe": "top-of-net selected_blocks.json",
+    "data": "x4 expansion (~434 pairs/anchor after rebalance)",
+    "lora_alpha_rule": "alpha = 2 * rank"
+  },
+  "deltas_pp": {
+    "qwen2.5-3b": {
+      "r_16": {
+        "toxicity": {
+          "n": 53,
+          "base_refusal": 0.6038,
+          "rdpo_refusal": 0.566,
+          "delta_pp": -3.8
+        },
+        "jailbreak": {
+          "n": 20,
+          "base_refusal": 0.6,
+          "rdpo_refusal": 0.55,
+          "delta_pp": -5.0
+        },
+        "overrefusal": {
+          "n": 20,
+          "base_refusal": 0.15,
+          "rdpo_refusal": 0.25,
+          "delta_pp": 10.0
+        },
+        "crosslingual": {
+          "n": 86,
+          "base_refusal": 0.3256,
+          "rdpo_refusal": 0.2907,
+          "delta_pp": -3.5
+        }
+      },
+      "r_64": {
+        "toxicity": {
+          "n": 53,
+          "base_refusal": 0.6038,
+          "rdpo_refusal": 0.4906,
+          "delta_pp": -11.3
+        },
+        "jailbreak": {
+          "n": 20,
+          "base_refusal": 0.6,
+          "rdpo_refusal": 0.6,
+          "delta_pp": 0.0
+        },
+        "overrefusal": {
+          "n": 20,
+          "base_refusal": 0.15,
+          "rdpo_refusal": 0.25,
+          "delta_pp": 10.0
+        },
+        "crosslingual": {
+          "n": 86,
+          "base_refusal": 0.3256,
+          "rdpo_refusal": 0.3256,
+          "delta_pp": 0.0
+        }
+      },
+      "r_128": {
+        "toxicity": {
+          "n": 53,
+          "base_refusal": 0.6038,
+          "rdpo_refusal": 0.5472,
+          "delta_pp": -5.7
+        },
+        "jailbreak": {
+          "n": 20,
+          "base_refusal": 0.6,
+          "rdpo_refusal": 0.5,
+          "delta_pp": -10.0
+        },
+        "overrefusal": {
+          "n": 20,
+          "base_refusal": 0.15,
+          "rdpo_refusal": 0.15,
+          "delta_pp": 0.0
+        },
+        "crosslingual": {
+          "n": 86,
+          "base_refusal": 0.3256,
+          "rdpo_refusal": 0.4186,
+          "delta_pp": 9.3
+        }
+      }
+    },
+    "gemma-3-4b": {
+      "r_16": {
+        "toxicity": {
+          "n": 53,
+          "base_refusal": 0.4906,
+          "rdpo_refusal": 0.5283,
+          "delta_pp": 3.8
+        },
+        "jailbreak": {
+          "n": 20,
+          "base_refusal": 0.65,
+          "rdpo_refusal": 0.55,
+          "delta_pp": -10.0
+        },
+        "overrefusal": {
+          "n": 20,
+          "base_refusal": 0.0,
+          "rdpo_refusal": 0.0,
+          "delta_pp": 0.0
+        },
+        "crosslingual": {
+          "n": 86,
+          "base_refusal": 0.2093,
+          "rdpo_refusal": 0.1744,
+          "delta_pp": -3.5
+        }
+      },
+      "r_64": {
+        "toxicity": {
+          "n": 53,
+          "base_refusal": 0.4906,
+          "rdpo_refusal": 0.5094,
+          "delta_pp": 1.9
+        },
+        "jailbreak": {
+          "n": 20,
+          "base_refusal": 0.65,
+          "rdpo_refusal": 0.5,
+          "delta_pp": -15.0
+        },
+        "overrefusal": {
+          "n": 20,
+          "base_refusal": 0.0,
+          "rdpo_refusal": 0.0,
+          "delta_pp": 0.0
+        },
+        "crosslingual": {
+          "n": 86,
+          "base_refusal": 0.2093,
+          "rdpo_refusal": 0.186,
+          "delta_pp": -2.3
+        }
+      },
+      "r_128": {
+        "toxicity": {
+          "n": 53,
+          "base_refusal": 0.4906,
+          "rdpo_refusal": 0.4906,
+          "delta_pp": 0.0
+        },
+        "jailbreak": {
+          "n": 20,
+          "base_refusal": 0.65,
+          "rdpo_refusal": 0.65,
+          "delta_pp": 0.0
+        },
+        "overrefusal": {
+          "n": 20,
+          "base_refusal": 0.0,
+          "rdpo_refusal": 0.0,
+          "delta_pp": 0.0
+        },
+        "crosslingual": {
+          "n": 86,
+          "base_refusal": 0.2093,
+          "rdpo_refusal": 0.2209,
+          "delta_pp": 1.2
+        }
+      }
+    },
+    "llama-3.2-3b": {
+      "r_16": {
+        "toxicity": {
+          "n": 53,
+          "base_refusal": 0.3962,
+          "rdpo_refusal": 0.3019,
+          "delta_pp": -9.4
+        },
+        "jailbreak": {
+          "n": 20,
+          "base_refusal": 0.25,
+          "rdpo_refusal": 0.35,
+          "delta_pp": 10.0
+        },
+        "overrefusal": {
+          "n": 20,
+          "base_refusal": 0.0,
+          "rdpo_refusal": 0.1,
+          "delta_pp": 10.0
+        },
+        "crosslingual": {
+          "n": 86,
+          "base_refusal": 0.186,
+          "rdpo_refusal": 0.1279,
+          "delta_pp": -5.8
+        }
+      },
+      "r_64": {
+        "toxicity": {
+          "delta_pp": -5.63,
+          "delta_pp_se": 3.92,
+          "n_seeds": 3
+        },
+        "jailbreak": {
+          "delta_pp": -8.33,
+          "delta_pp_se": 1.67,
+          "n_seeds": 3
+        },
+        "overrefusal": {
+          "delta_pp": 6.67,
+          "delta_pp_se": 4.41,
+          "n_seeds": 3
+        },
+        "crosslingual": {
+          "delta_pp": -1.57,
+          "delta_pp_se": 1.71,
+          "n_seeds": 3
+        }
+      },
+      "r_128": {
+        "toxicity": {
+          "delta_pp": -10.67,
+          "delta_pp_se": 2.28,
+          "n_seeds": 3
+        },
+        "jailbreak": {
+          "delta_pp": -8.33,
+          "delta_pp_se": 3.33,
+          "n_seeds": 3
+        },
+        "overrefusal": {
+          "delta_pp": 3.33,
+          "delta_pp_se": 1.67,
+          "n_seeds": 3
+        },
+        "crosslingual": {
+          "delta_pp": -6.6,
+          "delta_pp_se": 1.69,
+          "n_seeds": 3
+        }
+      }
+    }
+  },
+  "llama_per_seed": {
+    "llama-3.2-3b": {
+      "r_64": {
+        "seed_17": {
+          "toxicity": {
+            "n": 53,
+            "base_refusal": 0.3962,
+            "rdpo_refusal": 0.3208,
+            "delta_pp": -7.5
+          },
+          "jailbreak": {
+            "n": 20,
+            "base_refusal": 0.25,
+            "rdpo_refusal": 0.15,
+            "delta_pp": -10.0
+          },
+          "overrefusal": {
+            "n": 20,
+            "base_refusal": 0.0,
+            "rdpo_refusal": 0.05,
+            "delta_pp": 5.0
+          },
+          "crosslingual": {
+            "n": 86,
+            "base_refusal": 0.186,
+            "rdpo_refusal": 0.1395,
+            "delta_pp": -4.7
+          }
+        },
+        "seed_1729": {
+          "toxicity": {
+            "n": 53,
+            "base_refusal": 0.3962,
+            "rdpo_refusal": 0.4151,
+            "delta_pp": 1.9
+          },
+          "jailbreak": {
+            "n": 20,
+            "base_refusal": 0.25,
+            "rdpo_refusal": 0.2,
+            "delta_pp": -5.0
+          },
+          "overrefusal": {
+            "n": 20,
+            "base_refusal": 0.0,
+            "rdpo_refusal": 0.15,
+            "delta_pp": 15.0
+          },
+          "crosslingual": {
+            "n": 86,
+            "base_refusal": 0.186,
+            "rdpo_refusal": 0.1977,
+            "delta_pp": 1.2
+          }
+        },
+        "seed_65537": {
+          "toxicity": {
+            "n": 53,
+            "base_refusal": 0.3962,
+            "rdpo_refusal": 0.283,
+            "delta_pp": -11.3
+          },
+          "jailbreak": {
+            "n": 20,
+            "base_refusal": 0.25,
+            "rdpo_refusal": 0.15,
+            "delta_pp": -10.0
+          },
+          "overrefusal": {
+            "n": 20,
+            "base_refusal": 0.0,
+            "rdpo_refusal": 0.0,
+            "delta_pp": 0.0
+          },
+          "crosslingual": {
+            "n": 86,
+            "base_refusal": 0.186,
+            "rdpo_refusal": 0.1744,
+            "delta_pp": -1.2
+          }
+        }
+      },
+      "r_128": {
+        "seed_17": {
+          "toxicity": {
+            "n": 53,
+            "base_refusal": 0.3962,
+            "rdpo_refusal": 0.2453,
+            "delta_pp": -15.1
+          },
+          "jailbreak": {
+            "n": 20,
+            "base_refusal": 0.25,
+            "rdpo_refusal": 0.2,
+            "delta_pp": -5.0
+          },
+          "overrefusal": {
+            "n": 20,
+            "base_refusal": 0.0,
+            "rdpo_refusal": 0.05,
+            "delta_pp": 5.0
+          },
+          "crosslingual": {
+            "n": 86,
+            "base_refusal": 0.186,
+            "rdpo_refusal": 0.093,
+            "delta_pp": -9.3
+          }
+        },
+        "seed_1729": {
+          "toxicity": {
+            "n": 53,
+            "base_refusal": 0.3962,
+            "rdpo_refusal": 0.3208,
+            "delta_pp": -7.5
+          },
+          "jailbreak": {
+            "n": 20,
+            "base_refusal": 0.25,
+            "rdpo_refusal": 0.2,
+            "delta_pp": -5.0
+          },
+          "overrefusal": {
+            "n": 20,
+            "base_refusal": 0.0,
+            "rdpo_refusal": 0.0,
+            "delta_pp": 0.0
+          },
+          "crosslingual": {
+            "n": 86,
+            "base_refusal": 0.186,
+            "rdpo_refusal": 0.1163,
+            "delta_pp": -7.0
+          }
+        },
+        "seed_65537": {
+          "toxicity": {
+            "n": 53,
+            "base_refusal": 0.3962,
+            "rdpo_refusal": 0.3019,
+            "delta_pp": -9.4
+          },
+          "jailbreak": {
+            "n": 20,
+            "base_refusal": 0.25,
+            "rdpo_refusal": 0.1,
+            "delta_pp": -15.0
+          },
+          "overrefusal": {
+            "n": 20,
+            "base_refusal": 0.0,
+            "rdpo_refusal": 0.05,
+            "delta_pp": 5.0
+          },
+          "crosslingual": {
+            "n": 86,
+            "base_refusal": 0.186,
+            "rdpo_refusal": 0.1512,
+            "delta_pp": -3.5
+          }
+        }
+      }
+    }
+  },
+  "llama_seed_aggregated": {
+    "llama-3.2-3b": {
+      "r_64": {
+        "toxicity": {
+          "mean": -5.63,
+          "se": 3.92,
+          "n_seeds": 3,
+          "values": [
+            -7.5,
+            1.9,
+            -11.3
+          ]
+        },
+        "jailbreak": {
+          "mean": -8.33,
+          "se": 1.67,
+          "n_seeds": 3,
+          "values": [
+            -10.0,
+            -5.0,
+            -10.0
+          ]
+        },
+        "overrefusal": {
+          "mean": 6.67,
+          "se": 4.41,
+          "n_seeds": 3,
+          "values": [
+            5.0,
+            15.0,
+            0.0
+          ]
+        },
+        "crosslingual": {
+          "mean": -1.57,
+          "se": 1.71,
+          "n_seeds": 3,
+          "values": [
+            -4.7,
+            1.2,
+            -1.2
+          ]
+        }
+      },
+      "r_128": {
+        "toxicity": {
+          "mean": -10.67,
+          "se": 2.28,
+          "n_seeds": 3,
+          "values": [
+            -15.1,
+            -7.5,
+            -9.4
+          ]
+        },
+        "jailbreak": {
+          "mean": -8.33,
+          "se": 3.33,
+          "n_seeds": 3,
+          "values": [
+            -5.0,
+            -5.0,
+            -15.0
+          ]
+        },
+        "overrefusal": {
+          "mean": 3.33,
+          "se": 1.67,
+          "n_seeds": 3,
+          "values": [
+            5.0,
+            0.0,
+            5.0
+          ]
+        },
+        "crosslingual": {
+          "mean": -6.6,
+          "se": 1.69,
+          "n_seeds": 3,
+          "values": [
+            -9.3,
+            -7.0,
+            -3.5
+          ]
+        }
+      }
+    }
+  }
+}
