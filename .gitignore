@@ -75,3 +75,9 @@ _compute_*.py
 _inspect_*.py
 _add_*.py
 _fix_*.py
+
+# Anonymous artifact repo for the EMNLP submission. Tracked as its
+# own git repo (origin: rosafety-align-eval) and submitted to
+# anonymous.4open.science. Must never live inside the public
+# rosafety-align repo because that would deanonymize the authors.
+anonymous_artifacts/
