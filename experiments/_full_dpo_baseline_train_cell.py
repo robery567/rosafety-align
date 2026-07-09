@@ -184,7 +184,10 @@ def _train_one(anchor, mode):
         seed=SEED, report_to=["none"],
         beta=BETA, loss_type="sigmoid",
         max_length=MAX_SEQ,
-        precompute_ref_log_probs=True,   # frees the reference model -> full-FT fits
+        # full-FT: precompute frees the reference model so full DPO fits in memory.
+        # LoRA (lora_all): ref = adapter-disabled base, computed on the fly -> skips the
+        # datasets.map() that writes the /tmp arrow cache Colab can drop mid-run.
+        precompute_ref_log_probs=(mode == "full"),
         max_steps=-1,
     )
     trainer_a = DPOTrainer(

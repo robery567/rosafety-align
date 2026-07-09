@@ -167,8 +167,8 @@ def _train_one(anchor, lora_r, seed):
         seed=seed, report_to=["none"],
         beta=LRS_BETA, loss_type="sigmoid",
         max_length=LRS_MAX_SEQ,
-        precompute_ref_log_probs=True,
-        max_steps=-1,
+        precompute_ref_log_probs=False,  # LoRA ref = adapter-disabled base; on-the-fly
+        max_steps=-1,                     # avoids the datasets arrow-cache map (Colab /tmp bug)
     )
     trainer_a = DPOTrainer(
         model=model_a, args=dpo_cfg, peft_config=lora_cfg,
