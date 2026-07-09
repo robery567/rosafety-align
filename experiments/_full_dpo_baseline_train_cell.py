@@ -46,10 +46,16 @@ from datetime import datetime
 from pathlib import Path
 
 import torch
-from datasets import Dataset
+from datasets import Dataset, disable_caching
 from peft import LoraConfig
 from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 from trl import DPOConfig, DPOTrainer
+
+# Keep the tiny in-memory preference datasets in RAM. On Colab the default
+# on-disk datasets cache lands in a volatile /tmp dir that can be cleaned
+# between write and read during DPOTrainer's precompute_ref_log_probs step,
+# raising FileNotFoundError on cache-*.arrow. Disabling caching avoids that.
+disable_caching()
 
 # --- baseline config ---
 SEED       = 17
