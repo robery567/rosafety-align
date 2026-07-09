@@ -81,3 +81,14 @@ _fix_*.py
 # anonymous.4open.science. Must never live inside the public
 # rosafety-align repo because that would deanonymize the authors.
 anonymous_artifacts/
+
+# Supplementary-bundle build directory: anonymized companion-paper PDF
+# prepared for the OpenReview Data slot. Operator-local; never committed
+# (companion-paper text is not allowed in the public repo).
+_supplementary_build/
+companion-anonymized.zip
+
+# Rebuttal drafts + rebuttal-support analysis for the ARR/EMNLP submission.
+# Unpublished author-response text and private re-analysis; must never be
+# pushed to the public repo during (double-blind) review. Local only.
+rebuttal/
