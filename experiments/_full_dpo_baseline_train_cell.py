@@ -2,35 +2,38 @@
 Full-DPO / all-layers-LoRA-DPO baseline training cell (Reviewer Xoi2 sugg. 3).
 
 Xoi2 asked for "full DPO over all layers ... as an upper bound ... to validate
-whether the conclusions from the probe-guided setting are robust." We add TWO
-upper-bound baselines at the x4 data scale so the comparison is clean:
+whether the conclusions from the probe-guided setting are robust." We add two
+upper-bound baselines at the x4 data scale, so we can separate two hypotheses:
 
-  1. dpo-lora-all : LoRA (r=16, alpha=32) on ALL layers -- identical to RD-DPO
-     except the probe-layer restriction is removed. This is the *matched*
-     control: the ONLY difference from RD-DPO-k4 is layer coverage, so it
-     isolates "does restricting to 4 probe-selected layers cause the failure?"
-     Same per-anchor LR as RD-DPO (Qwen/Llama 2e-5, Gemma 5e-6).
+  1. dpo-lora-all : LoRA (r=16, alpha=32) on ALL layers, identical to RD-DPO-k4
+     except the probe-layer restriction is removed. This is the matched control
+     (only layer coverage differs), and it directly answers "does restricting
+     to 4 probe-selected layers cause the failure?" Run across the three
+     pre-registered seeds {17, 1729, 65537} so it matches the rigor of the
+     rank sweep and cannot be dismissed as single-seed. Per-anchor LR as
+     RD-DPO (Qwen/Llama 2e-5, Gemma 5e-6).
 
-  2. dpo-full : full-model DPO (no LoRA) -- the literal upper bound Xoi2 asked
-     for. Full fine-tuning uses a much smaller LR (5e-7, Zephyr-style) and more
-     memory; run on Qwen + Llama (Gemma full-FT is OOM-risk on A100-40G).
+  2. dpo-full : full-model DPO (no LoRA), the literal upper bound. Heavier
+     (~34-40 GB, A100-80G) and a smaller LR (5e-7, Zephyr-style). Seed 17 only,
+     Qwen + Llama, as a supplementary point; extend to more seeds only if it
+     turns out to move cross-lingual.
 
-Interpretation for the rebuttal:
-  - If BOTH baselines also leave held-out cross-lingual flat/negative, the gap
-    is NOT an artifact of RD-DPO's restricted subspace -> strengthens the paper.
-  - If either lifts cross-lingual materially, it bounds RD-DPO's limitation and
-    tells us capacity/coverage matters -> still sharpens the paper.
+Reading:
+  - If the all-layers / full baselines also leave held-out cross-lingual flat,
+    the gap is not an artifact of RD-DPO's restricted subspace (supports the
+    paper's revised, uniform-negative claim).
+  - If either lifts cross-lingual, the probe-layer restriction WAS the issue,
+    which contradicts the current framing and is a revision-level finding, not
+    a rebuttal point.
 
-Mirrors experiments/_llama_rank_seed_sweep_train_cell.py (paths, naming,
-run_meta, idempotency, rebalance).
+Mirrors the rank-seed sweep cells (paths, naming, run_meta, idempotency,
+rebalance, precompute).
 
-Adapter/run naming:
-  {short}__dpo-lora-all-bal-e6-x4__seed17
-  {short}__dpo-full-bal-e6-x4__seed17
+Adapter/run naming: {short}__dpo-lora-all-bal-e6-x4__seed{S} and
+{short}__dpo-full-bal-e6-x4__seed{S}.
 
-Estimated cost: all-layers LoRA ~30-45 min/anchor (~19-22 GB); full-model DPO
-~1.5-2.5 h/anchor (~34-40 GB, A100-80G recommended). Seed 17 only for the
-baseline (add seeds later only if a baseline turns out to move cross-lingual).
+Estimated cost: all-layers LoRA ~30-45 min/run x 9 runs (3 anchors x 3 seeds),
+fits A100-40G; full-model DPO ~1.5-2.5 h/run x 2 runs, A100-80G recommended.
 """
 
 # --- defensive: ensure prompts.py is importable when run standalone ---
@@ -51,14 +54,11 @@ from peft import LoraConfig
 from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 from trl import DPOConfig, DPOTrainer
 
-# Keep the tiny in-memory preference datasets in RAM. On Colab the default
-# on-disk datasets cache lands in a volatile /tmp dir that can be cleaned
-# between write and read during DPOTrainer's precompute_ref_log_probs step,
-# raising FileNotFoundError on cache-*.arrow. Disabling caching avoids that.
+# Keep the tiny in-memory preference datasets in RAM; avoids the /tmp arrow
+# cache that Colab can drop mid-run (see the rank-seed cells).
 disable_caching()
 
 # --- baseline config ---
-SEED       = 17
 DATA_COND  = "bal-e6-x4"                 # rebalanced, 6 epochs, x4 data
 RDPO_LR    = {                            # matched to RD-DPO per-anchor best-LR
     "Qwen/Qwen2.5-3B-Instruct": 2e-5,
@@ -67,12 +67,15 @@ RDPO_LR    = {                            # matched to RD-DPO per-anchor best-LR
 }
 FULL_FT_LR = 5e-7                         # full-model DPO LR (Zephyr-style)
 
-# Which anchors get which baseline.
+# All-layers LoRA: matched control, three seeds, all three anchors.
 LORA_ALL_ANCHORS = ["Qwen/Qwen2.5-3B-Instruct",
                     "meta-llama/Llama-3.2-3B-Instruct",
                     "google/gemma-3-4b-it"]
+LORA_ALL_SEEDS   = [17, 1729, 65537]
+# Full-model DPO: heavier upper bound, seed 17 only, Qwen + Llama.
 FULL_ANCHORS     = ["Qwen/Qwen2.5-3B-Instruct",
                     "meta-llama/Llama-3.2-3B-Instruct"]  # Gemma full-FT: OOM-risk on 40G
+FULL_SEEDS       = [17]
 
 BETA          = 0.1
 EPOCHS        = 6
@@ -107,7 +110,7 @@ def _rebalance(pairs, seed):
     return out, n_target
 
 
-def _train_one(anchor, mode):
+def _train_one(anchor, mode, seed):
     """mode in {'lora_all', 'full'}."""
     short_a  = short_of(anchor)
     family_a = family_of(anchor)
@@ -122,21 +125,21 @@ def _train_one(anchor, mode):
     else:
         raise ValueError(mode)
 
-    run_tag = f"{short_a}__{cond_tag}__seed{SEED}"
+    run_tag = f"{short_a}__{cond_tag}__seed{seed}"
     run_dir = ADAPTERS_DIR / run_tag
     run_dir.mkdir(parents=True, exist_ok=True)
     if (run_dir / "run_meta.json").exists():
-        print(f"[{short_a} {mode}] run_meta.json already exists; skipping.")
+        print(f"[{short_a} {mode} seed{seed}] run_meta.json already exists; skipping.")
         return
 
-    print(f"\n=== {short_a} baseline mode={mode} lr={lr:g} -> {run_tag}")
+    print(f"\n=== {short_a} baseline mode={mode} seed={seed} lr={lr:g} -> {run_tag}")
 
     pairs_path = PREFS_DIR / short_a / "preferences_x4.jsonl"
     if not pairs_path.exists():
         raise FileNotFoundError(f"{pairs_path} missing; run nb02b x4 first")
     pairs = [json.loads(l) for l in open(pairs_path, encoding="utf-8")]
     n_loaded = len(pairs)
-    pairs, n_target = _rebalance(pairs, SEED)
+    pairs, n_target = _rebalance(pairs, seed)
     src_counts = Counter(r["meta"]["source"] for r in pairs)
     print(f"  loaded {n_loaded} -> rebalanced {len(pairs)} pairs ({n_target}+{n_target})")
 
@@ -151,7 +154,7 @@ def _train_one(anchor, mode):
         return {"prompt": prompt_chat, "chosen": r["chosen"], "rejected": r["rejected"]}
 
     ds_full  = Dataset.from_list([_format(r) for r in pairs])
-    ds_split = ds_full.train_test_split(test_size=0.05, seed=SEED)
+    ds_split = ds_full.train_test_split(test_size=0.05, seed=seed)
     ds_train_a, ds_eval_a = ds_split["train"], ds_split["test"]
     print(f"  train={len(ds_train_a)}  eval={len(ds_eval_a)}")
 
@@ -165,7 +168,7 @@ def _train_one(anchor, mode):
     else:
         lora_cfg = None
 
-    set_seed(SEED)
+    set_seed(seed)
     model_a = AutoModelForCausalLM.from_pretrained(anchor, **load_kwargs_for(family_a))
     model_a.config.use_cache = False
     if hasattr(model_a, "gradient_checkpointing_enable"):
@@ -181,7 +184,7 @@ def _train_one(anchor, mode):
         warmup_steps=WARMUP,
         bf16=True, gradient_checkpointing=True,
         logging_steps=2, save_steps=250, eval_steps=100,
-        seed=SEED, report_to=["none"],
+        seed=seed, report_to=["none"],
         beta=BETA, loss_type="sigmoid",
         max_length=MAX_SEQ,
         # full-FT: precompute frees the reference model so full DPO fits in memory.
@@ -196,7 +199,7 @@ def _train_one(anchor, mode):
         train_dataset=ds_train_a, eval_dataset=ds_eval_a, processing_class=tok_a,
     )
 
-    print(f"  starting training (mode={mode})...")
+    print(f"  starting training (mode={mode}, seed={seed})...")
     t0 = time.time()
     trainer_a.train()
     elapsed = time.time() - t0
@@ -206,7 +209,7 @@ def _train_one(anchor, mode):
     trainer_a.save_model(str(run_dir))
     (run_dir / "run_meta.json").write_text(json.dumps({
         "run_tag": run_tag, "anchor": anchor, "condition": cond_tag,
-        "baseline_mode": mode, "seed": SEED,
+        "baseline_mode": mode, "seed": seed,
         "preference_dataset": str(pairs_path),
         "n_pairs": len(pairs), "pair_source_counts": dict(src_counts),
         "training_compute": {
@@ -231,9 +234,13 @@ def _train_one(anchor, mode):
     torch.cuda.empty_cache(); gc.collect()
 
 
-# All-layers LoRA-DPO first (cheap, matched control), then full-model DPO.
-for anchor in LORA_ALL_ANCHORS:
-    _train_one(anchor, "lora_all")
-for anchor in FULL_ANCHORS:
-    _train_one(anchor, "full")
+# All-layers LoRA-DPO first (cheap matched control, three seeds), seeds
+# outermost so you can stop after seed 17 for a single-seed read if needed.
+for seed in LORA_ALL_SEEDS:
+    for anchor in LORA_ALL_ANCHORS:
+        _train_one(anchor, "lora_all", seed)
+# Full-model DPO (heavier upper bound, seed 17 only).
+for seed in FULL_SEEDS:
+    for anchor in FULL_ANCHORS:
+        _train_one(anchor, "full", seed)
 print("\nFull-DPO / all-layers-LoRA baseline training done.")
