@@ -1,0 +1,226 @@
+{
+  "comparison_method": "intersect Paper 3 holdout IDs with Paper 2 per-id refusal judgments",
+  "judge": "openai/gpt-5-mini",
+  "split": "split_v1.holdout",
+  "experiment": "Upper-bound baselines vs RD-DPO-k4: all-layers LoRA (3 seeds) and full-model DPO (seed 17)",
+  "rdpo_k4_x4_reference_crosslingual": {
+    "qwen2.5-3b": {
+      "mean": -2.73,
+      "se": 0.77
+    },
+    "llama-3.2-3b": {
+      "mean": -2.33,
+      "se": 1.77
+    },
+    "gemma-3-4b": {
+      "mean": -3.1,
+      "se": 0.4
+    }
+  },
+  "dpo_lora_all": {
+    "per_seed": {
+      "qwen2.5-3b": {
+        "seed_17": {
+          "toxicity": -20.8,
+          "jailbreak": -15.0,
+          "overrefusal": -15.0,
+          "crosslingual": -12.8
+        },
+        "seed_1729": {
+          "toxicity": -18.9,
+          "jailbreak": -20.0,
+          "overrefusal": 0.0,
+          "crosslingual": -15.1
+        },
+        "seed_65537": {
+          "toxicity": -13.2,
+          "jailbreak": -30.0,
+          "overrefusal": -15.0,
+          "crosslingual": -10.5
+        }
+      },
+      "llama-3.2-3b": {
+        "seed_17": {
+          "toxicity": -11.3,
+          "jailbreak": 0.0,
+          "overrefusal": 0.0,
+          "crosslingual": -11.6
+        },
+        "seed_1729": {
+          "toxicity": -18.9,
+          "jailbreak": -5.0,
+          "overrefusal": 0.0,
+          "crosslingual": -5.8
+        },
+        "seed_65537": {
+          "toxicity": -22.6,
+          "jailbreak": -10.0,
+          "overrefusal": 5.0,
+          "crosslingual": -12.8
+        }
+      },
+      "gemma-3-4b": {
+        "seed_17": {
+          "toxicity": 3.8,
+          "jailbreak": 0.0,
+          "overrefusal": 0.0,
+          "crosslingual": -1.2
+        },
+        "seed_1729": {
+          "toxicity": -1.9,
+          "jailbreak": -5.0,
+          "overrefusal": 0.0,
+          "crosslingual": -2.3
+        },
+        "seed_65537": {
+          "toxicity": 0.0,
+          "jailbreak": -15.0,
+          "overrefusal": 0.0,
+          "crosslingual": -3.5
+        }
+      }
+    },
+    "seed_aggregated": {
+      "qwen2.5-3b": {
+        "toxicity": {
+          "mean": -17.63,
+          "se": 2.28,
+          "n_seeds": 3,
+          "values": [
+            -20.8,
+            -18.9,
+            -13.2
+          ]
+        },
+        "jailbreak": {
+          "mean": -21.67,
+          "se": 4.41,
+          "n_seeds": 3,
+          "values": [
+            -15.0,
+            -20.0,
+            -30.0
+          ]
+        },
+        "overrefusal": {
+          "mean": -10.0,
+          "se": 5.0,
+          "n_seeds": 3,
+          "values": [
+            -15.0,
+            0.0,
+            -15.0
+          ]
+        },
+        "crosslingual": {
+          "mean": -12.8,
+          "se": 1.33,
+          "n_seeds": 3,
+          "values": [
+            -12.8,
+            -15.1,
+            -10.5
+          ]
+        }
+      },
+      "llama-3.2-3b": {
+        "toxicity": {
+          "mean": -17.6,
+          "se": 3.33,
+          "n_seeds": 3,
+          "values": [
+            -11.3,
+            -18.9,
+            -22.6
+          ]
+        },
+        "jailbreak": {
+          "mean": -5.0,
+          "se": 2.89,
+          "n_seeds": 3,
+          "values": [
+            0.0,
+            -5.0,
+            -10.0
+          ]
+        },
+        "overrefusal": {
+          "mean": 1.67,
+          "se": 1.67,
+          "n_seeds": 3,
+          "values": [
+            0.0,
+            0.0,
+            5.0
+          ]
+        },
+        "crosslingual": {
+          "mean": -10.07,
+          "se": 2.16,
+          "n_seeds": 3,
+          "values": [
+            -11.6,
+            -5.8,
+            -12.8
+          ]
+        }
+      },
+      "gemma-3-4b": {
+        "toxicity": {
+          "mean": 0.63,
+          "se": 1.68,
+          "n_seeds": 3,
+          "values": [
+            3.8,
+            -1.9,
+            0.0
+          ]
+        },
+        "jailbreak": {
+          "mean": -6.67,
+          "se": 4.41,
+          "n_seeds": 3,
+          "values": [
+            0.0,
+            -5.0,
+            -15.0
+          ]
+        },
+        "overrefusal": {
+          "mean": 0.0,
+          "se": 0.0,
+          "n_seeds": 3,
+          "values": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "crosslingual": {
+          "mean": -2.33,
+          "se": 0.66,
+          "n_seeds": 3,
+          "values": [
+            -1.2,
+            -2.3,
+            -3.5
+          ]
+        }
+      }
+    }
+  },
+  "dpo_full": {
+    "qwen2.5-3b": {
+      "toxicity": -11.3,
+      "jailbreak": -10.0,
+      "overrefusal": 0.0,
+      "crosslingual": -5.8
+    },
+    "llama-3.2-3b": {
+      "toxicity": -7.5,
+      "jailbreak": 15.0,
+      "overrefusal": 10.0,
+      "crosslingual": 1.2
+    }
+  }
+}
