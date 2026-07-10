@@ -43,20 +43,26 @@ _PROMPTS_SRC = _Path("/content/drive/MyDrive/PhD/paper3-alignment/src")
 if _PROMPTS_SRC.exists() and str(_PROMPTS_SRC) not in _sys.path:
     _sys.path.insert(0, str(_PROMPTS_SRC))
 
-import gc, json, random, time
+import gc, json, os, random, shutil, time
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
 import torch
-from datasets import Dataset, disable_caching
+from datasets import Dataset, enable_caching, load_from_disk
 from peft import LoraConfig
 from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 from trl import DPOConfig, DPOTrainer
 
-# Keep the tiny in-memory preference datasets in RAM; avoids the /tmp arrow
-# cache that Colab can drop mid-run (see the rank-seed cells).
-disable_caching()
+# Full-model DPO uses precompute_ref_log_probs=True, which runs a datasets.map().
+# On Colab, for an in-memory dataset that map caches to a /tmp dir that can be
+# cleaned between write and read (FileNotFoundError on cache-*.arrow). Fix: keep
+# caching ENABLED (a global disable_caching elsewhere would force temp files
+# again) and make the splits file-backed via save_to_disk + load_from_disk, so
+# map() writes its cache next to them in stable storage.
+enable_caching()
+_DS_CACHE_BASE = ("/content/p3_ds_cache" if os.path.isdir("/content")
+                  else str(Path.home() / ".p3_ds_cache"))
 
 # --- baseline config ---
 DATA_COND  = "bal-e6-x4"                 # rebalanced, 6 epochs, x4 data
@@ -155,6 +161,12 @@ def _train_one(anchor, mode, seed):
 
     ds_full  = Dataset.from_list([_format(r) for r in pairs])
     ds_split = ds_full.train_test_split(test_size=0.05, seed=seed)
+    # File-back the splits in stable storage so DPOTrainer's precompute map
+    # caches next to them, not in a /tmp temp dir Colab can clean mid-run.
+    _ds_dir = os.path.join(_DS_CACHE_BASE, run_tag)
+    shutil.rmtree(_ds_dir, ignore_errors=True)
+    ds_split.save_to_disk(_ds_dir)
+    ds_split = load_from_disk(_ds_dir)
     ds_train_a, ds_eval_a = ds_split["train"], ds_split["test"]
     print(f"  train={len(ds_train_a)}  eval={len(ds_eval_a)}")
 
